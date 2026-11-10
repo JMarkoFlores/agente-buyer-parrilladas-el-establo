@@ -1,0 +1,104 @@
+# ==============================================================================
+# .gitignore — Agente Inteligente BUYER (Python / Flask / SQL Server)
+# ==============================================================================
+
+# Entorno Virtual Python
+.venv/
+venv/
+ENV/
+env/
+env.bak/
+venv.bak/
+*.venv/
+
+# Variables de Entorno y Credenciales Sensibles (NUNCA deben subirse a Git)
+*.env
+*.env.*
+.env
+.env.*
+backend/.env
+backend/.env.*
+!.env.example
+!backend/.env.example
+!**/.env.example
+
+# Byte-compiled / Caché de Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyd
+*.pyd.disabled
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Pruebas y Cobertura (Pytest / Coverage)
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.hypothesis/
+.tox/
+nosetests.xml
+coverage.xml
+*.cover
+
+# Logs y Archivos Temporales
+*.log
+logs/
+*.pid
+tmp/
+temp/
+
+# Bases de Datos Locales, Backups y Archivos de Datos SQL Server
+*.mdf
+*.ldf
+*.bak
+*.sql.bak
+*.sqlite
+*.sqlite3
+*.db
+
+# Configuración de IDEs y Editores de Código
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+
+# Archivos del Sistema Operativo
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+
+# Herramientas de IA y Scratchpad Local
+.gemini/
+scratch/
