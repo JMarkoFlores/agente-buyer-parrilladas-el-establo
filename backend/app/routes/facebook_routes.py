@@ -20,33 +20,38 @@ service = FacebookService()
 def require_admin_auth(f):
     """
     Decorador para proteger la sincronización manual mediante autenticación local de administración.
-    Admite encabezado X-Admin-Token, Authorization: Bearer <token> o parámetro ?admin_key=.
+    Admite encabezados X-Admin-Token, X-API-Key, Authorization: Bearer <token>, cuerpo JSON o parámetro ?admin_key=.
     """
     @wraps(f)
     def decorated_function(*args, **kwargs):
         expected_key = current_app.config.get("ADMIN_API_KEY", "").strip()
         if not expected_key:
-            # Si no está configurada, usar SECRET_KEY como fallback
             expected_key = current_app.config.get("SECRET_KEY", "").strip()
 
-        # Extraer token enviado
+        # Extraer token enviado por diversos mecanismos
         auth_header = request.headers.get("Authorization", "")
         admin_token_header = request.headers.get("X-Admin-Token", "").strip()
-        query_key = request.args.get("admin_key", "").strip()
+        api_key_header = request.headers.get("X-API-Key", "").strip()
+        query_key = request.args.get("admin_key", "").strip() or request.args.get("api_key", "").strip()
 
-        provided_token = ""
-        if admin_token_header:
-            provided_token = admin_token_header
-        elif auth_header.startswith("Bearer "):
-            provided_token = auth_header[7:].strip()
-        elif query_key:
-            provided_token = query_key
+        json_key = ""
+        if request.is_json and request.get_json(silent=True):
+            body = request.get_json(silent=True) or {}
+            json_key = str(body.get("admin_key") or body.get("admin_token") or body.get("api_key") or "").strip()
+
+        provided_token = (
+            admin_token_header
+            or api_key_header
+            or json_key
+            or query_key
+            or (auth_header[7:].strip() if auth_header.startswith("Bearer ") else "")
+        )
 
         if not provided_token or not hmac.compare_digest(provided_token, expected_key):
             return jsonify({
                 "success": False,
                 "error": "No autorizado: se requiere autenticación de administración válida.",
-                "instruccion": "Envíe el token configurado en el header 'X-Admin-Token' o 'Authorization: Bearer <token>'.",
+                "instruccion": "Envíe el token configurado en el header 'X-Admin-Token', 'X-API-Key' o 'Authorization: Bearer <token>'.",
             }), 401
 
         return f(*args, **kwargs)

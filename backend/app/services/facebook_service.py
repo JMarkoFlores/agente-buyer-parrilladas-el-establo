@@ -224,6 +224,10 @@ class FacebookService:
 
         client = self._get_client()
 
+        # Vincular meta_account_id en dbo.plataforma con el Page ID de Facebook
+        if client.page_id:
+            self.repo.update_facebook_platform_meta_id(client.page_id)
+
         # Verificar que haya token configurado
         if not client.access_token:
             detalle_err = "Token de acceso META_PAGE_ACCESS_TOKEN no configurado en el servidor."
@@ -269,7 +273,7 @@ class FacebookService:
                 resumen_pub["omitidos"] += 1
                 continue
 
-            texto = p_data.get("message")
+            texto = p_data.get("message") or p_data.get("story")
             url_pub = p_data.get("permalink_url")
             url_form = extract_form_url(texto)
             fecha_pub = parse_meta_datetime(p_data.get("created_time"))
@@ -332,12 +336,19 @@ class FacebookService:
             pub = pub_tuple[0]
             meta_post_id = pub.meta_post_id
 
+            p_data = pub_tuple[1]
             try:
                 comments = client.get_post_comments(meta_post_id)
+                if not comments and isinstance(p_data, dict) and "comments" in p_data:
+                    comments = p_data.get("comments", {}).get("data", [])
             except MetaClientError as exc:
                 logger.warning("No se pudieron consultar comentarios para %s: %s", meta_post_id, str(exc))
-                resumen_com["fallidos"] += 1
-                continue
+                # Fallback a comentarios embebidos en la publicación si existen
+                if isinstance(p_data, dict) and "comments" in p_data:
+                    comments = p_data.get("comments", {}).get("data", [])
+                else:
+                    resumen_com["fallidos"] += 1
+                    continue
 
             for c_data in comments:
                 c_id = c_data.get("id")

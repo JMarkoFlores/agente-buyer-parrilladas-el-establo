@@ -12,6 +12,8 @@ from typing import Any
 import requests
 
 logger = logging.getLogger("meta_client")
+logging.getLogger("urllib3").setLevel(logging.WARNING)
+logging.getLogger("requests").setLevel(logging.WARNING)
 
 
 class MetaClientError(Exception):
@@ -371,7 +373,7 @@ class MetaGraphClient:
         if not target_id:
             raise MetaClientError("Se requiere un Page ID para consultar publicaciones.")
 
-        fields = "id,message,permalink_url,created_time,shares,comments.summary(true),reactions.summary(true)"
+        fields = "id,message,story,permalink_url,created_time,shares,comments.summary(true),reactions.summary(true)"
         params: dict[str, Any] = {"fields": fields, "limit": min(limit, 100)}
 
         posts: list[dict[str, Any]] = []
@@ -486,4 +488,185 @@ class MetaGraphClient:
             return None
         except MetaClientError as exc:
             logger.warning("Error al consultar insights para post %s: %s", clean_post_id, str(exc))
+            return None
+
+    # =========================================================================
+    # Métodos de negocio de Instagram Graph API
+    # =========================================================================
+
+    def verify_instagram_connection(self, ig_account_id: str | None = None) -> dict[str, Any]:
+        """
+        Verifica la validez de las credenciales para la cuenta de Instagram.
+        Devuelve información estructurada sin exponer ningún token.
+        """
+        target_id = (ig_account_id or "").strip()
+        if not target_id:
+            return {
+                "conectado": False,
+                "motivo": "ID de cuenta de Instagram (META_IG_ACCOUNT_ID) no configurado.",
+            }
+        if not self.access_token:
+            return {
+                "conectado": False,
+                "motivo": "Token de acceso para Instagram no configurado.",
+                "ig_account_id": target_id,
+            }
+
+        try:
+            account_info = self.get_instagram_account_info(target_id)
+            return {
+                "conectado": True,
+                "api_version": self.api_version,
+                "cuenta": account_info,
+                "ig_account_id": target_id,
+            }
+        except MetaAuthError as exc:
+            return {
+                "conectado": False,
+                "motivo": f"Token inválido o expirado para Instagram: {str(exc)}",
+                "ig_account_id": target_id,
+            }
+        except MetaPermissionError as exc:
+            return {
+                "conectado": False,
+                "motivo": f"Permisos insuficientes para acceder a la cuenta de Instagram {target_id}: {str(exc)}",
+                "ig_account_id": target_id,
+            }
+        except MetaClientError as exc:
+            return {
+                "conectado": False,
+                "motivo": f"No se pudo consultar la cuenta de Instagram {target_id}: {str(exc)}",
+                "ig_account_id": target_id,
+            }
+
+    def get_instagram_account_info(self, ig_account_id: str) -> dict[str, Any]:
+        """Consulta datos de la cuenta profesional / de negocios de Instagram."""
+        target_id = ig_account_id.strip()
+        if not target_id:
+            raise MetaClientError("Se requiere un IG Account ID para consultar datos de la cuenta.")
+
+        fields = "id,username,name,profile_picture_url,followers_count,media_count"
+        return self._request("GET", target_id, params={"fields": fields})
+
+    def get_instagram_media(
+        self,
+        ig_account_id: str,
+        limit: int = 25,
+        max_pages: int = 5,
+    ) -> list[dict[str, Any]]:
+        """
+        Obtiene las publicaciones (media) de la cuenta de Instagram.
+        Campos: id, caption, media_type, media_url, permalink, timestamp, like_count, comments_count.
+        Paginación por cursores.
+        """
+        target_id = ig_account_id.strip()
+        if not target_id:
+            raise MetaClientError("Se requiere un IG Account ID para consultar publicaciones.")
+
+        fields = "id,caption,media_type,media_url,permalink,timestamp,like_count,comments_count"
+        params: dict[str, Any] = {"fields": fields, "limit": min(limit, 100)}
+
+        media_items: list[dict[str, Any]] = []
+        next_url_or_cursor: str | None = f"{target_id}/media"
+        current_page = 0
+
+        while next_url_or_cursor and current_page < max_pages:
+            current_page += 1
+            if next_url_or_cursor.startswith("http"):
+                res = self._request("GET", next_url_or_cursor)
+            else:
+                res = self._request("GET", next_url_or_cursor, params=params)
+
+            data = res.get("data", [])
+            media_items.extend(data)
+
+            paging = res.get("paging", {})
+            next_url = paging.get("next")
+            if next_url:
+                next_url_or_cursor = next_url
+                params = {}
+            else:
+                next_url_or_cursor = None
+
+        logger.info("Obtenidas %d publicaciones de Instagram en %d página(s).", len(media_items), current_page)
+        return media_items
+
+    def get_instagram_media_comments(
+        self,
+        media_id: str,
+        limit: int = 50,
+        max_pages: int = 5,
+    ) -> list[dict[str, Any]]:
+        """
+        Obtiene los comentarios de una publicación de Instagram.
+        Campos: id, text, timestamp, username, from, like_count.
+        """
+        clean_media_id = media_id.strip()
+        if not clean_media_id:
+            raise MetaClientError("Se requiere un Media ID para consultar comentarios de Instagram.")
+
+        fields = "id,text,timestamp,username,from,like_count"
+        params: dict[str, Any] = {"fields": fields, "limit": min(limit, 100)}
+
+        comments: list[dict[str, Any]] = []
+        next_url_or_cursor: str | None = f"{clean_media_id}/comments"
+        current_page = 0
+
+        while next_url_or_cursor and current_page < max_pages:
+            current_page += 1
+            if next_url_or_cursor.startswith("http"):
+                res = self._request("GET", next_url_or_cursor)
+            else:
+                res = self._request("GET", next_url_or_cursor, params=params)
+
+            data = res.get("data", [])
+            comments.extend(data)
+
+            paging = res.get("paging", {})
+            next_url = paging.get("next")
+            if next_url:
+                next_url_or_cursor = next_url
+                params = {}
+            else:
+                next_url_or_cursor = None
+
+        logger.debug("Obtenidos %d comentarios para media de Instagram %s.", len(comments), clean_media_id)
+        return comments
+
+    def get_instagram_media_insights(self, media_id: str) -> dict[str, int | None] | None:
+        """
+        Consulta métricas avanzadas (alcance, impresiones, guardados) para media de Instagram.
+        Métricas compatibles: impressions, reach, saved.
+        Si la API no las soporta o faltan permisos, retorna None de forma controlada.
+        """
+        clean_media_id = media_id.strip()
+        try:
+            res = self._request(
+                "GET",
+                f"{clean_media_id}/insights",
+                params={"metric": "impressions,reach,saved"},
+            )
+            data = res.get("data", [])
+            result: dict[str, int | None] = {"alcance": None, "impresiones": None, "guardados": None}
+
+            for item in data:
+                metric_name = item.get("name")
+                values = item.get("values", [])
+                if values and isinstance(values, list):
+                    val = values[0].get("value")
+                    if isinstance(val, (int, float)):
+                        val_int = int(val)
+                        if metric_name == "impressions":
+                            result["impresiones"] = val_int
+                        elif metric_name == "reach":
+                            result["alcance"] = val_int
+                        elif metric_name == "saved":
+                            result["guardados"] = val_int
+
+            return result
+        except (MetaPermissionError, MetaAPIError) as exc:
+            logger.info("Insights no disponibles para media IG %s: %s", clean_media_id, str(exc))
+            return None
+        except MetaClientError as exc:
+            logger.warning("Error al consultar insights para media IG %s: %s", clean_media_id, str(exc))
             return None

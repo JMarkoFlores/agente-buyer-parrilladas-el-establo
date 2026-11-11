@@ -86,6 +86,7 @@ class Publicacion(db.Model):
             "id_campana": self.id_campana,
             "campana_nombre": self.campana.nombre if self.campana else None,
             "meta_post_id": self.meta_post_id,
+            "origen": "DEMO" if (self.meta_post_id and self.meta_post_id.startswith("DEMO_")) else "META_REAL",
             "texto": self.texto,
             "url_publicacion": self.url_publicacion,
             "url_formulario": self.url_formulario,

@@ -35,6 +35,29 @@ class FacebookRepository:
         return db.session.query(Plataforma).filter(Plataforma.codigo == "FACEBOOK").first()
 
     @staticmethod
+    def update_facebook_platform_meta_id(
+        meta_page_id: str,
+        nombre_pagina: str | None = None,
+        url_pagina: str | None = None,
+    ) -> Plataforma | None:
+        """Actualiza el meta_account_id y datos oficiales de la plataforma Facebook en dbo.plataforma."""
+        fb_plat = FacebookRepository.get_facebook_platform()
+        if fb_plat:
+            changed = False
+            if meta_page_id and fb_plat.meta_account_id != meta_page_id:
+                fb_plat.meta_account_id = meta_page_id[:100]
+                changed = True
+            if nombre_pagina and fb_plat.nombre_pagina != nombre_pagina:
+                fb_plat.nombre_pagina = nombre_pagina[:150]
+                changed = True
+            if url_pagina and fb_plat.url_pagina != url_pagina:
+                fb_plat.url_pagina = url_pagina[:500]
+                changed = True
+            if changed:
+                db.session.flush()
+        return fb_plat
+
+    @staticmethod
     def upsert_publicacion(
         id_plataforma: int,
         meta_post_id: str,

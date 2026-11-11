@@ -8,6 +8,7 @@ from app.repositories.publicacion_repo import PublicacionRepository
 from app.repositories.buyer_repo import BuyerRepository
 from app.repositories.estadisticas_repo import EstadisticasRepository
 from app.repositories.facebook_repository import FacebookRepository
+from app.repositories.instagram_repository import InstagramRepository
 
 __all__ = [
     "PlataformaRepository",
@@ -17,4 +18,5 @@ __all__ = [
     "BuyerRepository",
     "EstadisticasRepository",
     "FacebookRepository",
+    "InstagramRepository",
 ]

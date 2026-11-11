@@ -27,6 +27,8 @@ def create_app(config_class: type[BaseConfig] | BaseConfig | None = None) -> Fla
         level=logging.INFO if not application.debug else logging.DEBUG,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
+    logging.getLogger("urllib3").setLevel(logging.WARNING)
+    logging.getLogger("requests").setLevel(logging.WARNING)
     logger = logging.getLogger(__name__)
     logger.info("Iniciando aplicación Agente BUYER en modo %s", application.config.get("ENV", "production"))
 
@@ -52,6 +54,7 @@ def create_app(config_class: type[BaseConfig] | BaseConfig | None = None) -> Fla
         buyers_bp,
         estadisticas_bp,
         facebook_bp,
+        instagram_bp,
     )
 
     application.register_blueprint(health_bp, url_prefix="/api")
@@ -63,6 +66,7 @@ def create_app(config_class: type[BaseConfig] | BaseConfig | None = None) -> Fla
     application.register_blueprint(buyers_bp, url_prefix="/api")
     application.register_blueprint(estadisticas_bp, url_prefix="/api")
     application.register_blueprint(facebook_bp, url_prefix="/api/facebook")
+    application.register_blueprint(instagram_bp, url_prefix="/api/instagram")
 
     # 6. Manejadores globales de errores JSON
     @application.errorhandler(404)

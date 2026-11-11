@@ -10,6 +10,7 @@ from app.routes.publicaciones import publicaciones_bp
 from app.routes.buyers import buyers_bp
 from app.routes.estadisticas import estadisticas_bp
 from app.routes.facebook_routes import facebook_bp
+from app.routes.instagram_routes import instagram_bp
 
 __all__ = [
     "health_bp",
@@ -21,4 +22,5 @@ __all__ = [
     "buyers_bp",
     "estadisticas_bp",
     "facebook_bp",
+    "instagram_bp",
 ]

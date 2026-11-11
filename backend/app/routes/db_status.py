@@ -30,7 +30,7 @@ def check_db_status():
         tables_query = text("""
             SELECT COUNT(*) AS total_tablas
             FROM INFORMATION_SCHEMA.TABLES 
-            WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_SCHEMA = 'dbo';
+            WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_SCHEMA = 'dbo' AND TABLE_NAME <> 'sysdiagrams';
         """)
 
         with db.engine.connect() as conn:

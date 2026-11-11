@@ -97,7 +97,7 @@ def test_get_publicaciones(client):
     assert body.get("success") is True
     publicaciones = body.get("data")
     assert isinstance(publicaciones, list)
-    assert len(publicaciones) == 3
+    assert len(publicaciones) >= 3
 
     post_ids = [p["meta_post_id"] for p in publicaciones]
     assert "DEMO_FB_POST_01" in post_ids

@@ -102,13 +102,16 @@ class BaseConfig:
         "pool_recycle": 1800,
     }
 
-    # Meta Graph API (Facebook Pages)
+    # Meta Graph API (Facebook Pages & Instagram)
     META_GRAPH_VERSION = os.getenv("META_GRAPH_VERSION", "v21.0")
     META_APP_ID = os.getenv("META_APP_ID", "")
     META_APP_SECRET = os.getenv("META_APP_SECRET", "")
     META_PAGE_ID = os.getenv("META_PAGE_ID", "")
     META_PAGE_ACCESS_TOKEN = os.getenv("META_PAGE_ACCESS_TOKEN", "")
     META_VERIFY_TOKEN = os.getenv("META_VERIFY_TOKEN", "")
+    META_IG_ACCOUNT_ID = os.getenv("META_IG_ACCOUNT_ID", "")
+    META_IG_ACCESS_TOKEN = os.getenv("META_IG_ACCESS_TOKEN", "")
+    META_IG_LOGIN_TYPE = os.getenv("META_IG_LOGIN_TYPE", "FACEBOOK_LOGIN")
     try:
         META_HTTP_TIMEOUT = int(os.getenv("META_HTTP_TIMEOUT", "20"))
     except ValueError:

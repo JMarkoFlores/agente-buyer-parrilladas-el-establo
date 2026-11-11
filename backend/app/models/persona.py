@@ -155,6 +155,7 @@ class InteraccionPublicacion(db.Model):
             "id_publicacion": self.id_publicacion,
             "id_buyer": self.id_buyer,
             "id_interaccion_externa": self.id_interaccion_externa,
+            "origen": "DEMO" if (self.id_interaccion_externa and self.id_interaccion_externa.startswith("DEMO_")) else "META_REAL",
             "tipo": self.tipo,
             "id_usuario_externo": self.id_usuario_externo,
             "nombre_visible": self.nombre_visible,
