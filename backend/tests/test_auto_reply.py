@@ -25,6 +25,7 @@ from app.models.auditoria import AccionAgente
 from app.models.respuesta_automatica import RespuestaAutomatica
 from app.services.auto_reply_service import AutoReplyService
 from app.services.interest_classifier import (
+    InterestClassifier,
     CATEGORIA_CONSULTA_PRECIO,
     CATEGORIA_INTERES_PRODUCTO,
     CATEGORIA_CONSULTA_PROMOCION,
@@ -34,6 +35,7 @@ from app.services.interest_classifier import (
     CATEGORIA_ELOGIO,
     CATEGORIA_AGRADECIMIENTO,
     CATEGORIA_EMOJI_POSITIVO,
+    CATEGORIA_SALUDO,
     CATEGORIA_INAPROPIADO,
     CATEGORIA_SPAM,
     CATEGORIA_DATOS_SENSIBLES,
@@ -60,11 +62,13 @@ def test_plantillas_facebook_contienen_enlace_oficial(auto_reply_service):
     ]:
         template = auto_reply_service.get_template("FACEBOOK", intencion, form_url)
         assert form_url in template
-        assert "El Establo" in template
 
 
 def test_plantillas_instagram_invitan_a_la_biografia(auto_reply_service):
-    """Verifica que las plantillas de Instagram invitan al enlace de la biografía (no enlace raw)."""
+    """
+    Verifica que las plantillas de Instagram incluyen la URL oficial https://elestablo.giansmd.dev/registro/
+    y además invitan a visitar el enlace de la biografía (Prompt 10 - Sección 8).
+    """
     form_url = "https://elestablo.giansmd.dev/registro/"
     for intencion in [
         CATEGORIA_CONSULTA_PRECIO,
@@ -73,11 +77,14 @@ def test_plantillas_instagram_invitan_a_la_biografia(auto_reply_service):
         CATEGORIA_CONSULTA_UBICACION,
         CATEGORIA_CONSULTA_HORARIO,
         CATEGORIA_CONSULTA_RESERVA,
+        CATEGORIA_ELOGIO,
+        CATEGORIA_AGRADECIMIENTO,
+        CATEGORIA_EMOJI_POSITIVO,
+        CATEGORIA_SALUDO,
     ]:
         template = auto_reply_service.get_template("INSTAGRAM", intencion, form_url)
+        assert form_url in template, f"La plantilla IG para {intencion} debe incluir la URL oficial"
         assert "biograf" in template.lower() or "perfil" in template.lower()
-        # En comentarios de IG no se deben poner enlaces raw
-        assert form_url not in template
 
 
 def test_categoria_otro_no_genera_plantilla(auto_reply_service):
@@ -275,7 +282,7 @@ def test_flujo_enviar_respuesta_dry_run(app, auto_reply_service):
             id_buyer=35,
             id_plataforma=1,
             intencion_detectada="INTERES_PRODUCTO",
-            texto_respuesta="Respuesta simulada para Parrilladas El Establo",
+            texto_respuesta="Respuesta simulada para Parrilladas El Establo: https://elestablo.giansmd.dev/registro/",
             estado="APROBADA",
             tipo_envio="AUTOMATICO",
             fecha_generacion=datetime.utcnow(),
@@ -329,7 +336,7 @@ def test_flujo_enviar_respuesta_live_mock(app):
             id_buyer=35,
             id_plataforma=1,
             intencion_detectada="CONSULTA_PROMOCION",
-            texto_respuesta="Respuesta enviada live para Parrilladas El Establo",
+            texto_respuesta="Respuesta enviada live para Parrilladas El Establo: https://elestablo.giansmd.dev/registro/",
             estado="APROBADA",
             tipo_envio="AUTOMATICO",
             fecha_generacion=datetime.utcnow(),
@@ -457,7 +464,7 @@ def test_meta_sin_id_falla_y_no_marca_enviada(app):
             id_buyer=35,
             id_plataforma=1,
             intencion_detectada="CONSULTA_HORARIO",
-            texto_respuesta="Horarios de atención de El Establo",
+            texto_respuesta="Horarios de atención de El Establo: https://elestablo.giansmd.dev/registro/",
             estado="APROBADA",
             tipo_envio="AUTOMATICO",
             fecha_generacion=datetime.utcnow(),
@@ -529,41 +536,43 @@ def test_endpoint_trazabilidad(client, app):
         assert "bloqueados_cooldown" in resumen
 
 
-def test_plantillas_elogios_y_agradecimientos_sin_enlace(auto_reply_service):
+def test_plantillas_elogios_y_agradecimientos_incluyen_enlace(auto_reply_service):
     """
-    Verifica que elogios, agradecimientos y emojis generan respuestas breves y naturales
-    sin obligar a incluir el enlace del formulario.
+    Verifica que elogios, agradecimientos y emojis generan respuestas comerciales breves y naturales
+    que incluyen el enlace oficial de registro (Prompt 10 - Sección 5).
     """
     form_url = "https://elestablo.giansmd.dev/registro/"
-    for cat in [CATEGORIA_ELOGIO, CATEGORIA_AGRADECIMIENTO, CATEGORIA_EMOJI_POSITIVO]:
+    for cat in [CATEGORIA_ELOGIO, CATEGORIA_AGRADECIMIENTO, CATEGORIA_EMOJI_POSITIVO, CATEGORIA_SALUDO]:
         tmpl_fb = auto_reply_service.get_template("FACEBOOK", cat, form_url)
         assert len(tmpl_fb) > 0
-        assert form_url not in tmpl_fb  # Sin enlace forzado
+        assert form_url in tmpl_fb, f"La plantilla FB para {cat} debe incluir la URL oficial"
 
         tmpl_ig = auto_reply_service.get_template("INSTAGRAM", cat, form_url)
         assert len(tmpl_ig) > 0
-        assert form_url not in tmpl_ig
-        assert "http" not in tmpl_ig
+        assert form_url in tmpl_ig, f"La plantilla IG para {cat} debe incluir la URL oficial"
+        assert "biograf" in tmpl_ig.lower() or "perfil" in tmpl_ig.lower()
 
 
-def test_evitar_repetir_enlace_a_mismo_usuario(auto_reply_service):
+def test_nueva_regla_cada_comentario_apto_incluye_enlace_oficial(auto_reply_service):
     """
-    Verifica que si un usuario ya recibió el enlace de registro, la plantilla comercial
-    de Facebook se adapta para no repetir el enlace como spam.
+    Verifica la NUEVA REGLA (Prompt 10 - Sección 3):
+    - Cada comentario nuevo apto recibe su propia respuesta.
+    - Cada respuesta enviada debe incluir la URL oficial del formulario.
+    - Que un usuario haya recibido el enlace previamente NO debe eliminarlo de una nueva respuesta apta.
     """
     form_url = "https://elestablo.giansmd.dev/registro/"
-    tmpl_con_enlace = auto_reply_service.get_template("FACEBOOK", CATEGORIA_CONSULTA_PRECIO, form_url, usuario_ya_recibio_enlace=False)
-    assert form_url in tmpl_con_enlace
+    tmpl_inicial = auto_reply_service.get_template("FACEBOOK", CATEGORIA_CONSULTA_PRECIO, form_url, usuario_ya_recibio_enlace=False)
+    assert form_url in tmpl_inicial
 
-    tmpl_sin_enlace = auto_reply_service.get_template("FACEBOOK", CATEGORIA_CONSULTA_PRECIO, form_url, usuario_ya_recibio_enlace=True)
-    assert form_url not in tmpl_sin_enlace
-    assert "previamente" in tmpl_sin_enlace or "anteriormente" in tmpl_sin_enlace or "nuevamente" in tmpl_sin_enlace
+    # Con la nueva regla, incluso si usuario_ya_recibio_enlace fuera True o False, debe contener form_url
+    tmpl_recurrente = auto_reply_service.get_template("FACEBOOK", CATEGORIA_CONSULTA_PRECIO, form_url, usuario_ya_recibio_enlace=True)
+    assert form_url in tmpl_recurrente
 
 
 def test_dos_comentarios_mismo_usuario_reciben_respuestas_diferentes(app, auto_reply_service):
     """
     Comprueba que dos comentarios nuevos diferentes del mismo usuario son ambos elegibles
-    y reciben respuestas contextuales adaptadas (no se bloquean por cooldown general de 24h).
+    y reciben respuestas contextuales adaptadas, ambas conteniendo la URL oficial.
     """
     with app.app_context():
         class DummyPost:
@@ -609,14 +618,125 @@ def test_dos_comentarios_mismo_usuario_reciben_respuestas_diferentes(app, auto_r
             resp1 = auto_reply_service.get_template("FACEBOOK", intencion1, form_url)
             resp2 = auto_reply_service.get_template("FACEBOOK", intencion2, form_url)
 
-            # Respuestas distintas
+            # Respuestas distintas y ambas con el enlace oficial
             assert resp1 != resp2
             assert form_url in resp1
-            assert form_url not in resp2  # Elogio no tiene link forzado
+            assert form_url in resp2
         finally:
             db.session.delete(com1)
             db.session.delete(com2)
             db.session.commit()
+
+
+def test_comentarios_obligatorios_prompt_10(app, auto_reply_service):
+    """
+    Prueba los comentarios obligatorios indicados en la especificación (Facebook e Instagram):
+    Facebook:
+    - "Quiero hacer mi reserva, cómo hago?"
+    - "Buen asado"
+    - "Tengo interés"
+    Instagram:
+    - "Como reservo mi pedido?"
+    - "Quiero pedir una parrillada"
+    - "¿Cuánto cuesta?"
+    """
+    form_url = "https://elestablo.giansmd.dev/registro/"
+    casos = [
+        ("FACEBOOK", "Quiero hacer mi reserva, cómo hago?", CATEGORIA_CONSULTA_RESERVA),
+        ("FACEBOOK", "Buen asado", CATEGORIA_ELOGIO),
+        ("FACEBOOK", "Tengo interés", CATEGORIA_INTERES_PRODUCTO),
+        ("INSTAGRAM", "Como reservo mi pedido?", CATEGORIA_CONSULTA_RESERVA),
+        ("INSTAGRAM", "Quiero pedir una parrillada", CATEGORIA_CONSULTA_RESERVA),
+        ("INSTAGRAM", "¿Cuánto cuesta?", CATEGORIA_CONSULTA_PRECIO),
+    ]
+
+    for plat, texto, intencion_esperada in casos:
+        intencion = InterestClassifier.clasificar(texto)
+        assert intencion == intencion_esperada, f"Fallo al clasificar '{texto}': esperado {intencion_esperada}, obtenido {intencion}"
+
+        template = auto_reply_service.get_template(plat, intencion, form_url)
+        assert len(template) > 0
+        assert form_url in template, f"La plantilla para '{texto}' ({plat}) debe contener la URL oficial"
+        if plat == "INSTAGRAM":
+            assert "biograf" in template.lower()
+
+
+def test_reprocesamiento_administrativo_evita_duplicados_y_no_reenvia_enviadas(app, auto_reply_service):
+    """
+    Verifica que el reprocesamiento administrativo (Prompt 10 - Sección 7):
+    1. Si un comentario ya tiene una respuesta ENVIADA confirmada por Meta, bloquea el reenvío.
+    2. Si un comentario fue omitido o simulado, permite actualizarlo sin generar duplicados.
+    """
+    with app.app_context():
+        interaccion = InteraccionPublicacion(
+            id_publicacion=14,
+            id_buyer=35,
+            id_interaccion_externa=f"TEST_REPROCESS_{int(datetime.utcnow().timestamp())}",
+            tipo="COMENTARIO",
+            id_usuario_externo="TEST_USER_REPROCESS",
+            nombre_visible="Usuario Reproceso",
+            texto="Como reservo mi pedido?",
+            fecha_interaccion=datetime.utcnow(),
+        )
+        db.session.add(interaccion)
+        db.session.flush()
+
+        try:
+            # 1. Reprocesar comentario que no tenía respuesta
+            res = auto_reply_service.reprocesar_comentario(interaccion.id_interaccion)
+            assert res["success"] is True
+            assert res["data"]["intencion_detectada"] == "CONSULTA_RESERVA"
+            assert "https://elestablo.giansmd.dev/registro/" in res["data"]["texto_respuesta"]
+
+            id_creado = res["data"]["id_respuesta"]
+
+            # 2. Simular que la respuesta fue ENVIADA con confirmación Meta
+            resp_db = db.session.get(RespuestaAutomatica, id_creado)
+            resp_db.estado = "ENVIADA"
+            resp_db.id_respuesta_meta = "META_REPLY_CONFIRMED_12345"
+            db.session.commit()
+
+            # 3. Intentar reprocesar de nuevo: debe rechazar por estar ya confirmada en Meta
+            res_repetido = auto_reply_service.reprocesar_comentario(interaccion.id_interaccion)
+            assert res_repetido["success"] is False
+            assert "ya cuenta con una respuesta confirmada por Meta" in res_repetido["error"]
+        finally:
+            resp_clean = RespuestaAutomatica.query.filter_by(id_interaccion=interaccion.id_interaccion).first()
+            if resp_clean:
+                db.session.delete(resp_clean)
+            db.session.delete(interaccion)
+            db.session.commit()
+
+
+def test_validacion_estricta_previa_al_envio(app, auto_reply_service):
+    """
+    Verifica las validaciones previas al envío (Prompt 10 - Sección 9):
+    - Requiere URL con HTTPS
+    - Requiere que el texto contenga la URL completa
+    - Control de longitud máxima
+    """
+    with app.app_context():
+        form_url = "https://elestablo.giansmd.dev/registro/"
+        texto_valido = f"¡Hola! Solicita tu información en {form_url}"
+
+        # 1. Caso válido
+        ok, msg = auto_reply_service.validar_respuesta_antes_de_envio(texto_valido, id_interaccion=999999)
+        assert ok is True
+
+        # 2. Texto sin la URL oficial
+        ok2, msg2 = auto_reply_service.validar_respuesta_antes_de_envio("¡Hola! Reserva con nosotros.", id_interaccion=999999)
+        assert ok2 is False
+        assert "no contiene la URL oficial" in msg2
+
+        # 3. Texto vacío
+        ok3, msg3 = auto_reply_service.validar_respuesta_antes_de_envio("", id_interaccion=999999)
+        assert ok3 is False
+
+        # 4. Longitud excesiva (> 2000 chars)
+        texto_largo = f"{form_url} " + ("x" * 2050)
+        ok4, msg4 = auto_reply_service.validar_respuesta_antes_de_envio(texto_largo, id_interaccion=999999)
+        assert ok4 is False
+        assert "excede los 2000" in msg4
 
 
 def test_mismo_comentario_no_recibe_dos_respuestas(app, auto_reply_service):

@@ -123,10 +123,17 @@ class InterestClassifier:
         (
             CATEGORIA_CONSULTA_RESERVA,
             [
-                re.compile(r"\b(reservar?|reservacion|reservaciones|reserva)\b"),
-                re.compile(r"\b(separar\s+mesa|mesa\s+para|reserva\s+de\s+mesa)\b"),
-                re.compile(r"\b(agendar|agenda|disponibilidad\s+de\s+mesa)\b"),
-                re.compile(r"\bquiero\s+una\s+mesa\b"),
+                re.compile(r"\b(reser[bv][a-z]*|recer[bv][a-z]*|rezer[bv][a-z]*)\b"),
+                re.compile(r"\b(separar\s+(una\s+)?mesa|mesa\s+para|reserva\s+de\s+mesa|disponibilidad\s+de\s+mesa)\b"),
+                re.compile(r"\b(agendar|agenda|apartar\s+(una\s+)?mesa|quiero\s+(una\s+)?mesa)\b"),
+                re.compile(r"\b(como|donde|don|kiero|quiero|deseo|puedo)\s+([a-z\s]*\s+)?(hago|hacer|ago|gestiono|gestionar|separo|separar|agendo|agendar)\s+([a-z\s]*\s+)?(reserva|mesa)\b"),
+                re.compile(r"\b(como\s+puedo\s+hacer\s+(un\s+)?pedido|como\s+(hago|hacer|ago|realizo|realizar)\s+(un\s+|mi\s+)?pedido)\b"),
+                re.compile(r"\b(quiero|kiero|deseo|puedo|como|donde|para)\s+pedir(\s+[a-z]+)*\b"),
+                re.compile(r"\b(hacer|hago|realizar|realizo|tomar|toman)\s+(un\s+|el\s+|mi\s+)?pedido(s)?\b"),
+                re.compile(r"\b(como|donde)\s+(pido|pedir)\b"),
+                re.compile(r"\b(reservo\s+mi\s+pedido|reserva\s+de\s+pedido)\b"),
+                re.compile(r"\b(quiero\s+hacer\s+mi\s+reserva|hacer\s+mi\s+reserva)\b"),
+                re.compile(r"\b(delivery|a\s+domicilio|para\s+llevar)\b"),
             ],
         ),
         (

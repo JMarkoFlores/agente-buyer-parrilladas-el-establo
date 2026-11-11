@@ -79,8 +79,21 @@ def test_clasificacion_consulta_horario():
 
 
 def test_clasificacion_consulta_reserva():
-    """Ejemplos de consulta y solicitud de reserva."""
+    """Ejemplos de consulta y solicitud de reserva (Prompt 10: variaciones de reserva y pedido)."""
+    # Frases obligatorias de Prompt 10
+    assert InterestClassifier.clasificar("Como reservo mi pedido?") == CATEGORIA_CONSULTA_RESERVA
+    assert InterestClassifier.clasificar("¿Cómo hago mi reserva?") == CATEGORIA_CONSULTA_RESERVA
     assert InterestClassifier.clasificar("Quiero reservar una mesa") == CATEGORIA_CONSULTA_RESERVA
+    assert InterestClassifier.clasificar("Cómo puedo hacer un pedido") == CATEGORIA_CONSULTA_RESERVA
+    assert InterestClassifier.clasificar("Quiero pedir una parrillada") == CATEGORIA_CONSULTA_RESERVA
+    assert InterestClassifier.clasificar("¿Dónde hago mi reserva?") == CATEGORIA_CONSULTA_RESERVA
+    assert InterestClassifier.clasificar("Quiero hacer mi reserva, como hago?") == CATEGORIA_CONSULTA_RESERVA
+
+    # Variaciones con mayúsculas, tildes, signos y faltas ortográficas leves
+    assert InterestClassifier.clasificar("COMO RESERVO MI PEDIDO?") == CATEGORIA_CONSULTA_RESERVA
+    assert InterestClassifier.clasificar("como reserbo mi pedido") == CATEGORIA_CONSULTA_RESERVA
+    assert InterestClassifier.clasificar("donde ago mi reserva") == CATEGORIA_CONSULTA_RESERVA
+    assert InterestClassifier.clasificar("kiero pedir una parrillada") == CATEGORIA_CONSULTA_RESERVA
     assert InterestClassifier.clasificar("Se puede separar mesa para 6 personas?") == CATEGORIA_CONSULTA_RESERVA
     assert InterestClassifier.clasificar("Deseo hacer una reservación para el viernes") == CATEGORIA_CONSULTA_RESERVA
 

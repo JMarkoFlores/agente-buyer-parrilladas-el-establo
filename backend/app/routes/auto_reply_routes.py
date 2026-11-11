@@ -205,3 +205,20 @@ def activar_auto():
         "mensaje": "Envío automático ACTIVADO exitosamente.",
         "data": status,
     }), 200
+
+
+@auto_reply_bp.route("/reprocesar/<int:id_interaccion>", methods=["POST"])
+@require_admin_auth
+def reprocesar(id_interaccion: int):
+    """
+    Reprocesa administrativamente un comentario omitido o mal clasificado.
+    Reclasifica la intención y formula plantilla con la URL oficial de registro.
+    No reenvía si ya existe una confirmación real de Meta.
+    """
+    body = request.get_json(silent=True) or {} if request.is_json else {}
+    forzar_despacho = bool(body.get("forzar_despacho", False))
+    resultado = service.reprocesar_comentario(id_interaccion=id_interaccion, forzar_despacho=forzar_despacho)
+    if not resultado.get("success"):
+        return jsonify(resultado), 400
+    return jsonify(resultado), 200
+

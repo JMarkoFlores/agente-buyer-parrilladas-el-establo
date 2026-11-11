@@ -101,183 +101,164 @@ class AutoReplyService:
         CATEGORIA_SALUDO,
     }
 
+    @classmethod
+    def get_form_url(cls) -> str:
+        """Obtiene la URL oficial centralizada del formulario de registro."""
+        try:
+            return current_app.config.get("AUTO_REPLY_FORM_URL", "https://elestablo.giansmd.dev/registro/").strip()
+        except Exception:
+            return "https://elestablo.giansmd.dev/registro/"
+
+    def validar_respuesta_antes_de_envio(
+        self,
+        texto_respuesta: str,
+        id_interaccion: int,
+        require_form_url: bool | None = None,
+    ) -> tuple[bool, str]:
+        """
+        Validación estricta previa a la publicación de cualquier respuesta automática:
+        1. Obtener la URL desde AUTO_REPLY_FORM_URL.
+        2. Validar que utiliza HTTPS obligatorio.
+        3. Verificar que el texto contenga la URL completa.
+        4. Comprobar longitud y restricciones aplicables (1 <= len <= 2000).
+        5. Verificar que el comentario no tenga ya una respuesta enviada confirmada por Meta.
+        """
+        form_url = self.get_form_url()
+        if not form_url or not form_url.strip():
+            return False, "AUTO_REPLY_FORM_URL no está configurada. Envío bloqueado por seguridad."
+
+        if not form_url.strip().lower().startswith("https://"):
+            return False, f"La URL del formulario ({form_url}) no utiliza HTTPS obligatorio. Envío bloqueado."
+
+        if require_form_url is None:
+            try:
+                require_form_url = current_app.config.get("AUTO_REPLY_INCLUDE_FORM_URL", True)
+            except Exception:
+                require_form_url = True
+
+        if require_form_url and form_url not in (texto_respuesta or ""):
+            return False, f"El texto de la respuesta no contiene la URL oficial configurada ({form_url}). Envío bloqueado."
+
+        texto_limpio = (texto_respuesta or "").strip()
+        if not texto_limpio:
+            return False, "El mensaje de respuesta no puede estar vacío."
+
+        if len(texto_limpio) > 2000:
+            return False, f"El mensaje excede los 2000 caracteres ({len(texto_limpio)})."
+
+        # Verificar que el comentario no tenga ya una respuesta confirmada por Meta en SQL Server
+        respuesta_enviada = RespuestaAutomatica.query.filter(
+            RespuestaAutomatica.id_interaccion == id_interaccion,
+            RespuestaAutomatica.estado == "ENVIADA",
+            RespuestaAutomatica.id_respuesta_meta.isnot(None),
+        ).first()
+        if respuesta_enviada:
+            return False, f"El comentario #{id_interaccion} ya cuenta con una respuesta confirmada por Meta (ID: {respuesta_enviada.id_respuesta_meta})."
+
+        return True, "Validación previa exitosa."
+
     def get_template(
         self,
         plataforma: str,
         intencion: str,
-        form_url: str,
+        form_url: str | None = None,
         usuario_ya_recibio_enlace: bool = False,
     ) -> str:
         """
-        Retorna la plantilla adecuada según la intención detectada, la plataforma de origen
-        y si el usuario ya recibió previamente el enlace oficial de registro.
+        Retorna la plantilla adecuada según la intención detectada y la plataforma de origen.
+        REGLA ESTRICTA (Prompt 10):
+        - Cada respuesta automática apta DEBE incluir la URL oficial de registro (https://elestablo.giansmd.dev/registro/).
+        - Que un usuario haya recibido el enlace previamente no debe eliminarlo de una nueva respuesta apta.
+        - En Instagram se incluye la URL completa y además se hace mención al enlace en la biografía.
+        - No afirmar que el formulario confirma automáticamente una reserva (sirve para solicitar información/contacto).
         """
         plat = plataforma.upper()
+        url = form_url or self.get_form_url()
 
         if plat == "FACEBOOK":
-            if usuario_ya_recibio_enlace:
-                # Si el usuario ya recibió el enlace recientemente, responder amablemente sin repetir el link como spam
-                templates = {
-                    CATEGORIA_CONSULTA_PRECIO: (
-                        "¡Hola nuevamente! 🔥 Con gusto te informamos sobre nuestra carta y precios. "
-                        "Como ya te compartimos el enlace de registro previamente, puedes revisar los detalles allí "
-                        "o escribirnos por mensaje directo si deseas asistencia adicional. ¡Buen provecho!"
-                    ),
-                    CATEGORIA_INTERES_PRODUCTO: (
-                        "¡Gracias nuevamente por tu interés! 🥩 Recuerda que puedes revisar todos nuestros cortes y detalles "
-                        "en el formulario que te compartimos anteriormente. ¡Estamos atentos para atenderte!"
-                    ),
-                    CATEGORIA_CONSULTA_PROMOCION: (
-                        "¡Hola de nuevo! 🔥 Recuerda que nuestras novedades y promociones especiales están disponibles "
-                        "en el formulario que te enviamos previamente. ¡Te esperamos pronto en Parrilladas El Establo!"
-                    ),
-                    CATEGORIA_CONSULTA_UBICACION: (
-                        "¡Hola nuevamente! 📍 Te esperamos en nuestro local con el auténtico sabor parrillero. "
-                        "Toda la información de contacto y ubicación la encuentras en el enlace que te enviamos previamente."
-                    ),
-                    CATEGORIA_CONSULTA_HORARIO: (
-                        "¡Hola de nuevo! ⏰ En Parrilladas El Establo atendemos de martes a domingo con los mejores cortes a las brasas. "
-                        "Cualquier consulta adicional, no dudes en escribirnos."
-                    ),
-                    CATEGORIA_CONSULTA_RESERVA: (
-                        "¡Hola de nuevo! 🥩 Puedes gestionar los detalles de tu mesa con los datos de contacto que te compartimos "
-                        "en el formulario previo. ¡Será un gusto recibirte!"
-                    ),
-                    CATEGORIA_ELOGIO: (
-                        "¡Muchas gracias! 🔥 En Parrilladas El Establo nos apasiona la buena carne a las brasas. "
-                        "¡Te esperamos pronto para disfrutar del mejor sabor parrillero! 🥩"
-                    ),
-                    CATEGORIA_AGRADECIMIENTO: (
-                        "¡Muchas gracias por tu comentario! ¡Te esperamos pronto en Parrilladas El Establo! 🥩🔥"
-                    ),
-                    CATEGORIA_EMOJI_POSITIVO: (
-                        "¡Muchas gracias por el apoyo! 🔥🥩 ¡Te esperamos en Parrilladas El Establo!"
-                    ),
-                    CATEGORIA_SALUDO: (
-                        "¡Hola! 🔥 Gracias por comunicarte con Parrilladas El Establo. ¿En qué podemos ayudarte hoy? ¡Te esperamos pronto!"
-                    ),
-                }
-            else:
-                templates = {
-                    CATEGORIA_CONSULTA_PRECIO: (
-                        f"¡Hola! 🔥 Gracias por tu interés en Parrilladas El Establo. Puedes consultar nuestra carta "
-                        f"y conocer más sobre nuestros productos. Si deseas recibir atención personalizada, "
-                        f"completa nuestro formulario: {form_url}"
-                    ),
-                    CATEGORIA_INTERES_PRODUCTO: (
-                        f"¡Gracias por tu interés! 🥩 Nos encantará ayudarte a conocer los mejores cortes de Parrilladas El Establo. "
-                        f"Completa nuestro formulario y podremos brindarte más información: {form_url}"
-                    ),
-                    CATEGORIA_CONSULTA_PROMOCION: (
-                        f"¡Hola! 🔥 Gracias por escribirnos. Puedes consultar las novedades y promociones de Parrilladas El Establo "
-                        f"completando el formulario: {form_url}"
-                    ),
-                    CATEGORIA_CONSULTA_UBICACION: (
-                        f"¡Hola! 📍 Te esperamos en el local de Parrilladas El Establo con el auténtico sabor parrillero. "
-                        f"Para detalles de ubicación y contacto directo, completa nuestro formulario: {form_url}"
-                    ),
-                    CATEGORIA_CONSULTA_HORARIO: (
-                        f"¡Hola! ⏰ En Parrilladas El Establo atendemos de martes a domingo con los mejores cortes a las brasas. "
-                        f"Completa nuestro formulario para recibir atención y novedades: {form_url}"
-                    ),
-                    CATEGORIA_CONSULTA_RESERVA: (
-                        f"¡Hola! 🥩 En Parrilladas El Establo nuestro formulario oficial sirve para solicitar contacto directo y gestionar "
-                        f"la disponibilidad de tu mesa: {form_url}"
-                    ),
-                    CATEGORIA_ELOGIO: (
-                        "¡Muchas gracias! 🔥 En Parrilladas El Establo nos apasiona la buena carne a las brasas. "
-                        "¡Te esperamos pronto para disfrutar del mejor sabor parrillero! 🥩"
-                    ),
-                    CATEGORIA_AGRADECIMIENTO: (
-                        "¡Muchas gracias por tu comentario! ¡Te esperamos pronto en Parrilladas El Establo! 🥩🔥"
-                    ),
-                    CATEGORIA_EMOJI_POSITIVO: (
-                        "¡Muchas gracias por el apoyo! 🔥🥩 ¡Te esperamos en Parrilladas El Establo!"
-                    ),
-                    CATEGORIA_SALUDO: (
-                        "¡Hola! 🔥 Gracias por comunicarte con Parrilladas El Establo. ¿En qué podemos ayudarte hoy? ¡Te esperamos pronto!"
-                    ),
-                }
+            templates = {
+                CATEGORIA_CONSULTA_RESERVA: (
+                    f"¡Hola! 🔥 Gracias por tu interés en Parrilladas El Establo. Para solicitar información sobre "
+                    f"tu reserva, completa nuestro formulario: {url}"
+                ),
+                CATEGORIA_CONSULTA_PRECIO: (
+                    f"¡Hola! 🥩 Gracias por escribirnos. Puedes consultar nuestros productos y solicitar más "
+                    f"información completando este formulario: {url}"
+                ),
+                CATEGORIA_INTERES_PRODUCTO: (
+                    f"¡Muchas gracias por tu interés! 🔥 Nos encantará ayudarte a conocer nuestras parrilladas. "
+                    f"Completa nuestro formulario: {url}"
+                ),
+                CATEGORIA_CONSULTA_PROMOCION: (
+                    f"¡Hola! 🔥 Gracias por escribirnos. Para recibir información sobre nuestras novedades, "
+                    f"completa el formulario: {url}"
+                ),
+                CATEGORIA_ELOGIO: (
+                    f"¡Muchas gracias por tu comentario! 🥩🔥 Nos alegra que te gusten nuestras parrilladas. "
+                    f"Puedes conocer más y dejarnos tus datos aquí: {url}"
+                ),
+                CATEGORIA_CONSULTA_UBICACION: (
+                    f"¡Hola! 📍 Te esperamos en el local de Parrilladas El Establo con el auténtico sabor parrillero. "
+                    f"Para detalles de ubicación y contacto directo, completa nuestro formulario: {url}"
+                ),
+                CATEGORIA_CONSULTA_HORARIO: (
+                    f"¡Hola! ⏰ En Parrilladas El Establo atendemos de martes a domingo con los mejores cortes a las brasas. "
+                    f"Completa nuestro formulario para recibir atención y novedades: {url}"
+                ),
+                CATEGORIA_AGRADECIMIENTO: (
+                    f"¡Muchas gracias por tu comentario! 🥩🔥 Para cualquier consulta o contacto, "
+                    f"puedes dejarnos tus datos aquí: {url}"
+                ),
+                CATEGORIA_SALUDO: (
+                    f"¡Hola! 🔥 Gracias por comunicarte con Parrilladas El Establo. Para conocer más sobre nuestras especialidades "
+                    f"y dejarnos tus datos, completa el formulario: {url}"
+                ),
+                CATEGORIA_EMOJI_POSITIVO: (
+                    f"¡Muchas gracias por el apoyo! 🔥🥩 Conoce más de Parrilladas El Establo y déjanos tus datos aquí: {url}"
+                ),
+            }
         else:  # INSTAGRAM
-            if usuario_ya_recibio_enlace:
-                templates = {
-                    CATEGORIA_CONSULTA_PRECIO: (
-                        "¡Hola nuevamente! 🔥 Recuerda que nuestra carta y formulario de atención están siempre "
-                        "disponibles desde el enlace de nuestra biografía. ¡Te esperamos en Parrilladas El Establo! 🥩"
-                    ),
-                    CATEGORIA_INTERES_PRODUCTO: (
-                        "¡Gracias por escribirnos nuevamente! 🥩 Puedes revisar toda la información en el formulario "
-                        "enlazado en nuestra biografía. ¡Buen provecho!"
-                    ),
-                    CATEGORIA_CONSULTA_PROMOCION: (
-                        "¡Hola de nuevo! 🔥 Todas nuestras promociones vigentes se encuentran en el enlace de nuestra biografía. "
-                        "¡Esperamos tu visita!"
-                    ),
-                    CATEGORIA_CONSULTA_UBICACION: (
-                        "¡Hola nuevamente! 📍 La información de ubicación y contacto directo la encuentras en el enlace de nuestra biografía."
-                    ),
-                    CATEGORIA_CONSULTA_HORARIO: (
-                        "¡Hola de nuevo! ⏰ Atendemos de martes a domingo con las mejores especialidades a las brasas. "
-                        "Contáctanos desde el enlace de nuestra biografía."
-                    ),
-                    CATEGORIA_CONSULTA_RESERVA: (
-                        "¡Hola nuevamente! 🥩 Para gestionar la disponibilidad de tu mesa, visita el enlace de nuestra biografía. "
-                        "¡Será un gusto atenderte!"
-                    ),
-                    CATEGORIA_ELOGIO: (
-                        "¡Muchas gracias! 🔥 En Parrilladas El Establo siempre listos para ofrecerte la mejor experiencia parrillera. "
-                        "¡Te esperamos pronto! 🥩"
-                    ),
-                    CATEGORIA_AGRADECIMIENTO: (
-                        "¡Muchas gracias por tu apoyo! ¡Te esperamos pronto en Parrilladas El Establo! 🥩🔥"
-                    ),
-                    CATEGORIA_EMOJI_POSITIVO: (
-                        "¡Muchas gracias! 🔥🥩 ¡Un fuerte abrazo parrillero!"
-                    ),
-                    CATEGORIA_SALUDO: (
-                        "¡Hola! 🔥 Gracias por comunicarte con Parrilladas El Establo. ¡Un gusto saludarte!"
-                    ),
-                }
-            else:
-                templates = {
-                    CATEGORIA_CONSULTA_PRECIO: (
-                        "¡Hola! 🔥 Gracias por tu interés en Parrilladas El Establo. Puedes consultar nuestra carta "
-                        "y acceder al formulario de contacto desde el enlace de nuestra biografía. ¡Te esperamos! 🥩"
-                    ),
-                    CATEGORIA_INTERES_PRODUCTO: (
-                        "¡Gracias por tu interés! 🥩 Nos encantará ayudarte a disfrutar de nuestros mejores cortes "
-                        "a la parrilla. Encuentra nuestro formulario de contacto en el enlace de nuestra biografía."
-                    ),
-                    CATEGORIA_CONSULTA_PROMOCION: (
-                        "¡Hola! 🔥 Gracias por escribirnos. Entérate de todas nuestras novedades y promociones "
-                        "especiales visitando el enlace de nuestra biografía. ¡Buen provecho!"
-                    ),
-                    CATEGORIA_CONSULTA_UBICACION: (
-                        "¡Hola! 📍 Te esperamos en Parrilladas El Establo con el mejor ambiente parrillero. "
-                        "Visita el enlace de nuestra biografía para más detalles y contacto directo."
-                    ),
-                    CATEGORIA_CONSULTA_HORARIO: (
-                        "¡Hola! ⏰ Te esperamos de martes a domingo para disfrutar de nuestras especialidades "
-                        "parrilleras. Contáctanos desde el enlace de la biografía."
-                    ),
-                    CATEGORIA_CONSULTA_RESERVA: (
-                        "¡Hola! 🥩 Puedes solicitar contacto para coordinar la disponibilidad de tu mesa a través "
-                        "del enlace en nuestra biografía. ¡Será un gusto atenderte!"
-                    ),
-                    CATEGORIA_ELOGIO: (
-                        "¡Muchas gracias! 🔥 En Parrilladas El Establo siempre listos para ofrecerte la mejor experiencia parrillera. "
-                        "¡Te esperamos pronto! 🥩"
-                    ),
-                    CATEGORIA_AGRADECIMIENTO: (
-                        "¡Muchas gracias por tu apoyo! ¡Te esperamos pronto en Parrilladas El Establo! 🥩🔥"
-                    ),
-                    CATEGORIA_EMOJI_POSITIVO: (
-                        "¡Muchas gracias! 🔥🥩 ¡Un fuerte abrazo parrillero!"
-                    ),
-                    CATEGORIA_SALUDO: (
-                        "¡Hola! 🔥 Gracias por escribirnos a Parrilladas El Establo. ¡Un gusto saludarte!"
-                    ),
-                }
+            templates = {
+                CATEGORIA_CONSULTA_RESERVA: (
+                    f"¡Hola! 🥩🔥 Gracias por tu interés en Parrilladas El Establo. Para solicitar información sobre "
+                    f"tu reserva, completa nuestro formulario: {url} . También puedes encontrarlo en nuestra biografía."
+                ),
+                CATEGORIA_CONSULTA_PRECIO: (
+                    f"¡Hola! 🥩 Gracias por escribirnos. Puedes consultar nuestros productos y solicitar más "
+                    f"información completando este formulario: {url} . También puedes encontrarlo en nuestra biografía."
+                ),
+                CATEGORIA_INTERES_PRODUCTO: (
+                    f"¡Muchas gracias por tu interés! 🔥 Nos encantará ayudarte a conocer nuestras parrilladas. "
+                    f"Completa nuestro formulario: {url} . También puedes encontrarlo en nuestra biografía."
+                ),
+                CATEGORIA_CONSULTA_PROMOCION: (
+                    f"¡Hola! 🔥 Gracias por escribirnos. Para recibir información sobre nuestras novedades, "
+                    f"completa el formulario: {url} . También puedes encontrarlo en nuestra biografía."
+                ),
+                CATEGORIA_ELOGIO: (
+                    f"¡Muchas gracias por tu comentario! 🥩🔥 Nos alegra que te gusten nuestras parrilladas. "
+                    f"Puedes conocer más y dejarnos tus datos aquí: {url} . También disponible en nuestra biografía."
+                ),
+                CATEGORIA_CONSULTA_UBICACION: (
+                    f"¡Hola! 📍 Te esperamos en Parrilladas El Establo con el auténtico sabor parrillero. "
+                    f"Para detalles de ubicación y contacto directo, completa nuestro formulario: {url} . También puedes encontrarlo en nuestra biografía."
+                ),
+                CATEGORIA_CONSULTA_HORARIO: (
+                    f"¡Hola! ⏰ En Parrilladas El Establo atendemos de martes a domingo con los mejores cortes a las brasas. "
+                    f"Completa nuestro formulario para recibir atención y novedades: {url} . También puedes encontrarlo en nuestra biografía."
+                ),
+                CATEGORIA_AGRADECIMIENTO: (
+                    f"¡Muchas gracias por tu comentario! 🥩🔥 Para cualquier consulta o contacto, "
+                    f"completa nuestro formulario: {url} . También puedes encontrarlo en nuestra biografía."
+                ),
+                CATEGORIA_SALUDO: (
+                    f"¡Hola! 🔥 Gracias por comunicarte con Parrilladas El Establo. Para conocer nuestras especialidades "
+                    f"o contactarnos, completa el formulario: {url} . También en nuestra biografía."
+                ),
+                CATEGORIA_EMOJI_POSITIVO: (
+                    f"¡Muchas gracias por el apoyo! 🔥🥩 Conoce más de Parrilladas El Establo y déjanos tus datos en: {url} . También disponible en nuestra biografía."
+                ),
+            }
 
         return templates.get(intencion, "")
 
@@ -510,15 +491,12 @@ class AutoReplyService:
                 omitidos += 1
                 continue
 
-            user_id = str(com.id_usuario_externo or "").strip()
-            usuario_ya_tiene_enlace = self.usuario_recibio_enlace_reciente(user_id=user_id, hours=cooldown_hours)
-
-            # Generar texto según plantilla y contexto de usuario (sin repetir enlace si ya lo tiene)
+            # Requisito Prompt 10: Cada comentario nuevo apto recibe su respuesta con la URL oficial
             texto = self.get_template(
                 plat_code,
                 intencion,
                 form_url,
-                usuario_ya_recibio_enlace=usuario_ya_tiene_enlace,
+                usuario_ya_recibio_enlace=False,
             )
             if not texto:
                 omitidos += 1
@@ -723,6 +701,17 @@ class AutoReplyService:
             db.session.commit()
             return {"success": False, "error": resp.error_detalle, "data": resp.to_dict()}
 
+        # Requisito 9: Validación final de la respuesta antes de enviar
+        valida, motivo_val = self.validar_respuesta_antes_de_envio(
+            texto_respuesta=resp.texto_respuesta,
+            id_interaccion=resp.id_interaccion,
+        )
+        if not valida:
+            resp.estado = "FALLIDA"
+            resp.error_detalle = f"Validación previa fallida: {motivo_val}"
+            db.session.commit()
+            return {"success": False, "error": resp.error_detalle, "data": resp.to_dict()}
+
         plat_code = "FACEBOOK" if resp.id_plataforma == 1 else "INSTAGRAM"
 
         # Modo Simulación (Dry Run o Auto-Reply Deshabilitado)
@@ -825,6 +814,133 @@ class AutoReplyService:
             }
 
     # =========================================================================
+    # Mecanismo de Reprocesamiento Administrativo Seguro
+    # =========================================================================
+
+    def reprocesar_comentario(self, id_interaccion: int, forzar_despacho: bool = False) -> dict[str, Any]:
+        """
+        Reprocesa administrativamente un comentario que fue omitido o clasificado erróneamente.
+        Reglas de seguridad:
+        1. No genera duplicados (asociado a id_interaccion único).
+        2. Si ya cuenta con una respuesta en estado ENVIADA con confirmación real de Meta, no la reenvía.
+        3. Reclasifica la intención con el clasificador mejorado y formula plantilla contextual con la URL oficial.
+        4. Si forzar_despacho=True o el modo auto-reply está totalmente activo, despacha la respuesta a Meta.
+        """
+        comentario = db.session.get(InteraccionPublicacion, id_interaccion)
+        if not comentario:
+            return {"success": False, "error": f"Comentario #{id_interaccion} no encontrado en SQL Server."}
+
+        # 1. Verificar si ya tiene respuesta confirmada por Meta (idempotencia estricta)
+        resp_existente = RespuestaAutomatica.query.filter_by(id_interaccion=id_interaccion).first()
+        if resp_existente and resp_existente.estado == "ENVIADA" and resp_existente.id_respuesta_meta:
+            return {
+                "success": False,
+                "error": f"El comentario #{id_interaccion} ya cuenta con una respuesta confirmada por Meta (ID: {resp_existente.id_respuesta_meta}). No se puede reenviar por seguridad.",
+                "data": resp_existente.to_dict(),
+            }
+
+        # 2. Exclusión de comentarios DEMO o propios del restaurante
+        user_id = str(comentario.id_usuario_externo or "").strip()
+        user_name = str(comentario.nombre_visible or "").strip().lower()
+        known_ids = set(self.KNOWN_RESTAURANT_IDS)
+        try:
+            p_id = str(current_app.config.get("META_PAGE_ID", "")).strip()
+            if p_id:
+                known_ids.add(p_id)
+            ig_id = str(current_app.config.get("META_IG_ACCOUNT_ID", "")).strip()
+            if ig_id:
+                known_ids.add(ig_id)
+        except Exception:
+            pass
+
+        if user_id and user_id in known_ids:
+            return {"success": False, "error": f"Comentario emitido por la propia cuenta del restaurante (ID {user_id})."}
+        if any(known in user_name for known in self.KNOWN_RESTAURANT_NAMES):
+            return {"success": False, "error": f"Comentario emitido por el restaurante ('{user_name}')."}
+
+        # 3. Reclasificar intención con el clasificador mejorado
+        nueva_intencion = InterestClassifier.clasificar(comentario.texto or "")
+
+        # Registrar reclasificación en auditoría
+        InterestClassifier.registrar_clasificacion(
+            id_interaccion_externa=comentario.id_interaccion_externa,
+            texto=comentario.texto,
+            id_buyer=comentario.id_buyer,
+            forzar=True,
+        )
+
+        if nueva_intencion not in self.CATEGORIAS_ELEGIBLES:
+            return {
+                "success": False,
+                "error": f"El comentario no califica como intención comercial elegible (Intención detectada: {nueva_intencion}).",
+                "intencion": nueva_intencion,
+            }
+
+        plat_code = "FACEBOOK" if comentario.publicacion.id_plataforma == 1 else "INSTAGRAM"
+        form_url = self.get_form_url()
+        nuevo_texto = self.get_template(plat_code, nueva_intencion, form_url)
+        if not nuevo_texto:
+            return {"success": False, "error": f"No se pudo generar plantilla para {plat_code} e intención {nueva_intencion}."}
+
+        dry_run = current_app.config.get("AUTO_REPLY_DRY_RUN", True)
+        enabled = current_app.config.get("AUTO_REPLY_ENABLED", False)
+        require_review = current_app.config.get("AUTO_REPLY_REQUIRE_REVIEW", True)
+
+        if dry_run:
+            estado_inicial = "SIMULADA"
+            tipo_envio = "SIMULADO"
+        elif require_review and not forzar_despacho:
+            estado_inicial = "PENDIENTE"
+            tipo_envio = "MANUAL_APROBADO"
+        else:
+            estado_inicial = "APROBADA"
+            tipo_envio = "AUTOMATICO"
+
+        if resp_existente:
+            resp_existente.intencion_detectada = nueva_intencion
+            resp_existente.texto_respuesta = nuevo_texto
+            resp_existente.estado = estado_inicial
+            resp_existente.tipo_envio = tipo_envio
+            resp_existente.error_detalle = None
+            resp_obj = resp_existente
+        else:
+            resp_obj = RespuestaAutomatica(
+                id_interaccion=comentario.id_interaccion,
+                id_buyer=comentario.id_buyer,
+                id_plataforma=comentario.publicacion.id_plataforma,
+                intencion_detectada=nueva_intencion,
+                texto_respuesta=nuevo_texto,
+                id_respuesta_meta=None,
+                estado=estado_inicial,
+                tipo_envio=tipo_envio,
+                fecha_generacion=datetime.utcnow(),
+            )
+            db.session.add(resp_obj)
+
+        db.session.commit()
+
+        auditoria = AccionAgente(
+            nombre_agente="AutoReplyService",
+            id_buyer=comentario.id_buyer,
+            accion="REPROCESAR_COMENTARIO",
+            detalle=f"Comentario #{id_interaccion} reprocesado ({plat_code}, intencion={nueva_intencion}, estado={estado_inicial})",
+            resultado="EXITOSO",
+            fecha_ejecucion=datetime.utcnow(),
+        )
+        db.session.add(auditoria)
+        db.session.commit()
+
+        # Si se solicita despachar explícitamente hacia Meta
+        if forzar_despacho and not dry_run:
+            return self.enviar_respuesta(resp_obj.id_respuesta)
+
+        return {
+            "success": True,
+            "mensaje": f"Comentario #{id_interaccion} reprocesado con intención '{nueva_intencion}' y estado '{estado_inicial}'.",
+            "data": resp_obj.to_dict(),
+        }
+
+    # =========================================================================
     # Métricas y Resumen de Estado
     # =========================================================================
 
@@ -851,7 +967,8 @@ class AutoReplyService:
                 "require_review": current_app.config.get("AUTO_REPLY_REQUIRE_REVIEW", True),
                 "facebook_enabled": current_app.config.get("AUTO_REPLY_FACEBOOK_ENABLED", True),
                 "instagram_enabled": current_app.config.get("AUTO_REPLY_INSTAGRAM_ENABLED", True),
-                "form_url": current_app.config.get("AUTO_REPLY_FORM_URL", "https://elestablo.giansmd.dev/registro/"),
+                "form_url": self.get_form_url(),
+                "include_form_url": current_app.config.get("AUTO_REPLY_INCLUDE_FORM_URL", True),
                 "landing_url": current_app.config.get("AUTO_REPLY_LANDING_URL", "https://elestablo.giansmd.dev/"),
                 "max_per_cycle": current_app.config.get("AUTO_REPLY_MAX_PER_CYCLE", 5),
                 "cooldown_hours": current_app.config.get("AUTO_REPLY_COOLDOWN_HOURS", 24),
