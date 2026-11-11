@@ -131,18 +131,19 @@ async function cargarResumen() {
     const scheduler = data.estado_agentes.scheduler || {};
     const badgeScheduler = document.getElementById("badge-scheduler-nav");
     const badgeCoord = document.getElementById("status-badge-coord");
+    const intervaloTexto = scheduler.intervalo_activo || (scheduler.intervalo_segundos ? `${scheduler.intervalo_segundos}s` : `${scheduler.intervalo_minutos}m`);
     if (scheduler.scheduler_activo) {
       badgeScheduler.className = "badge bg-success";
-      badgeScheduler.innerHTML = `<i class="bi bi-clock-history me-1"></i>Scheduler: Activo (${scheduler.intervalo_minutos}m)`;
+      badgeScheduler.innerHTML = `<i class="bi bi-clock-history me-1"></i>Scheduler: Activo (${intervaloTexto})`;
       badgeCoord.className = "badge bg-success";
       badgeCoord.innerText = "Automatizado";
-      document.getElementById("status-desc-coord").innerText = `Sincroniza cada ${scheduler.intervalo_minutos} min`;
+      document.getElementById("status-desc-coord").innerText = `Sincroniza cada ${intervaloTexto}`;
     } else {
       badgeScheduler.className = "badge bg-warning text-dark";
       badgeScheduler.innerHTML = `<i class="bi bi-pause-circle me-1"></i>Scheduler: Desactivado`;
       badgeCoord.className = "badge bg-secondary";
       badgeCoord.innerText = "Manual";
-      document.getElementById("status-desc-coord").innerText = "Listo para disparos manuales";
+      document.getElementById("status-desc-coord").innerText = `Listo para disparos manuales (${intervaloTexto})`;
     }
 
   } catch (err) {

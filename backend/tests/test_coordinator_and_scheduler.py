@@ -127,5 +127,75 @@ def test_scheduler_status(app):
     with app.app_context():
         status = SyncSchedulerService.get_status()
         assert "scheduler_activo" in status
+        assert "intervalo_segundos" in status
         assert "intervalo_minutos" in status
+        assert "intervalo_activo" in status
+        assert "origen_configuracion" in status
         assert "coordinador" in status
+
+
+def test_scheduler_intervalo_segundos_prioridad(app, monkeypatch):
+    """Si ambas variables están presentes, prioriza segundos y reporta origen."""
+    monkeypatch.setenv("META_SYNC_INTERVAL_SECONDS", "10")
+    monkeypatch.setenv("META_SYNC_INTERVAL_MINUTES", "1")
+
+    from flask import Flask
+    test_app = Flask("test_scheduler_app")
+    test_app.config["META_SYNC_ENABLED"] = False
+    test_app.config["META_SYNC_INTERVAL_SECONDS"] = 10
+    test_app.config["META_SYNC_INTERVAL_MINUTES"] = 1.0
+    test_app.config["META_SYNC_INTERVAL_ORIGEN"] = "META_SYNC_INTERVAL_SECONDS"
+
+    from app.services.sync_scheduler import SyncSchedulerService, _scheduler_state
+    SyncSchedulerService.init_app(test_app)
+
+    status = SyncSchedulerService.get_status()
+    assert status["intervalo_segundos"] == 10
+    assert "10 segundos" in status["intervalo_activo"]
+    assert status["ambas_variables_presentes"] is True
+    assert status["origen_configuracion"] == "META_SYNC_INTERVAL_SECONDS"
+
+
+def test_scheduler_compatibilidad_minutos(monkeypatch):
+    """Compatibilidad heredada: si solo se define minutos, se convierte a segundos."""
+    monkeypatch.delenv("META_SYNC_INTERVAL_SECONDS", raising=False)
+    monkeypatch.setenv("META_SYNC_INTERVAL_MINUTES", "2")
+
+    from flask import Flask
+    test_app = Flask("test_scheduler_compat")
+    test_app.config["META_SYNC_ENABLED"] = False
+    test_app.config["META_SYNC_INTERVAL_SECONDS"] = None
+    test_app.config["META_SYNC_INTERVAL_MINUTES"] = 2.0
+    test_app.config["META_SYNC_INTERVAL_ORIGEN"] = "META_SYNC_INTERVAL_MINUTES"
+
+    from app.services.sync_scheduler import SyncSchedulerService
+    SyncSchedulerService.init_app(test_app)
+
+    status = SyncSchedulerService.get_status()
+    assert status["intervalo_segundos"] == 120
+    assert status["intervalo_minutos"] == 2.0
+    assert status["ambas_variables_presentes"] is False
+
+
+def test_scheduler_rate_limit_backoff(app):
+    """Ante error 429 de Meta, activa enfriamiento temporal (cooldown)."""
+    import datetime
+    from unittest.mock import patch
+    import app.services.sync_scheduler as ss
+
+    # Simular que el coordinador lanza error de Rate Limit 429
+    with patch.object(ss._coordinator, "sincronizar", side_effect=Exception("HTTP 429: User request limit reached")):
+        resultado = ss._ejecutar_ciclo_sincronizacion(app, "todas")
+        assert resultado["success"] is False
+        assert ss._rate_limit_cooldown_until is not None
+        assert ss._scheduler_state["rate_limit_cooldown_activo"] is True
+
+        # El siguiente intento inmediato debe ser omitido por cooldown
+        resultado_omitido = ss._ejecutar_ciclo_sincronizacion(app, "todas")
+        assert resultado_omitido["success"] is False
+        assert resultado_omitido.get("omitido_por_rate_limit") is True
+
+    # Limpiar estado
+    ss._rate_limit_cooldown_until = None
+    ss._scheduler_state["rate_limit_cooldown_activo"] = False
+

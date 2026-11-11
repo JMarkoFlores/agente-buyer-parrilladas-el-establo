@@ -122,10 +122,30 @@ class BaseConfig:
 
     # Automatización y Scheduler
     META_SYNC_ENABLED = _to_bool(os.getenv("META_SYNC_ENABLED", "false"), default=False)
-    try:
-        META_SYNC_INTERVAL_MINUTES = int(os.getenv("META_SYNC_INTERVAL_MINUTES", "10"))
-    except ValueError:
-        META_SYNC_INTERVAL_MINUTES = 10
+
+    # Soporte para intervalo en segundos y minutos (prioridad para segundos)
+    _raw_sec = os.getenv("META_SYNC_INTERVAL_SECONDS")
+    _raw_min = os.getenv("META_SYNC_INTERVAL_MINUTES")
+
+    if _raw_sec is not None and _raw_sec.strip():
+        try:
+            META_SYNC_INTERVAL_SECONDS = max(1, int(_raw_sec.strip()))
+            META_SYNC_INTERVAL_ORIGEN = "META_SYNC_INTERVAL_SECONDS"
+        except ValueError:
+            META_SYNC_INTERVAL_SECONDS = 10
+            META_SYNC_INTERVAL_ORIGEN = "META_SYNC_INTERVAL_SECONDS (fallback)"
+    elif _raw_min is not None and _raw_min.strip():
+        try:
+            META_SYNC_INTERVAL_SECONDS = max(1, int(_raw_min.strip())) * 60
+            META_SYNC_INTERVAL_ORIGEN = "META_SYNC_INTERVAL_MINUTES"
+        except ValueError:
+            META_SYNC_INTERVAL_SECONDS = 60
+            META_SYNC_INTERVAL_ORIGEN = "META_SYNC_INTERVAL_MINUTES (fallback)"
+    else:
+        META_SYNC_INTERVAL_SECONDS = 10
+        META_SYNC_INTERVAL_ORIGEN = "DEFAULT"
+
+    META_SYNC_INTERVAL_MINUTES = round(META_SYNC_INTERVAL_SECONDS / 60.0, 2)
 
 
 
