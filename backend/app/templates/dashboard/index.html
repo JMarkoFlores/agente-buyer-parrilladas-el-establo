@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard BUYER — Parrilladas El Establo</title>
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body class="bg-light">
+
+  <!-- Top Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top shadow-sm">
+    <div class="container-fluid px-4">
+      <a class="navbar-brand fw-bold d-flex align-items-center" href="/dashboard">
+        <span class="fs-4 me-2">🥩</span>
+        <span>Parrilladas El Establo</span>
+        <span class="badge bg-danger ms-2 fs-7">Agente BUYER</span>
+      </a>
+      <div class="d-flex align-items-center gap-3">
+        <span id="badge-scheduler-nav" class="badge bg-secondary">
+          <i class="bi bi-clock-history me-1"></i>Scheduler: Consultando...
+        </span>
+        <button class="btn btn-outline-warning btn-sm" data-bs-toggle="modal" data-bs-target="#modalAdminKey">
+          <i class="bi bi-key-fill me-1"></i><span id="admin-key-status">Clave Admin</span>
+        </button>
+        <button id="btn-refresh" class="btn btn-outline-light btn-sm" onclick="cargarTodoElDashboard()">
+          <i class="bi bi-arrow-clockwise me-1"></i>Actualizar
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Container -->
+  <main class="container-fluid px-4 py-4">
+
+    <!-- Alerts Container -->
+    <div id="alert-container"></div>
+
+    <!-- Navigation Tabs -->
+    <ul class="nav nav-pills mb-4 nav-fill shadow-sm p-2 bg-white rounded" id="dashboardTabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active fw-semibold" id="tab-resumen-btn" data-bs-toggle="tab" data-bs-target="#tab-resumen" type="button" role="tab">
+          <i class="bi bi-speedometer2 me-1"></i>1. Resumen General
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link fw-semibold" id="tab-facebook-btn" data-bs-toggle="tab" data-bs-target="#tab-facebook" type="button" role="tab">
+          <i class="bi bi-facebook me-1 text-primary"></i>2. Facebook
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link fw-semibold" id="tab-instagram-btn" data-bs-toggle="tab" data-bs-target="#tab-instagram" type="button" role="tab">
+          <i class="bi bi-instagram me-1 text-danger"></i>3. Instagram
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link fw-semibold" id="tab-comentarios-btn" data-bs-toggle="tab" data-bs-target="#tab-comentarios" type="button" role="tab">
+          <i class="bi bi-chat-dots-fill me-1 text-info"></i>4. Comentarios & Intención
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link fw-semibold" id="tab-buyers-btn" data-bs-toggle="tab" data-bs-target="#tab-buyers" type="button" role="tab">
+          <i class="bi bi-people-fill me-1 text-success"></i>5. BUYERS
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link fw-semibold" id="tab-admin-btn" data-bs-toggle="tab" data-bs-target="#tab-admin" type="button" role="tab">
+          <i class="bi bi-gear-fill me-1 text-secondary"></i>6. Administración
+        </button>
+      </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content" id="dashboardTabsContent">
+
+      <!-- ============================================================== -->
+      <!-- SECCIÓN 1: RESUMEN GENERAL -->
+      <!-- ============================================================== -->
+      <div class="tab-pane fade show active" id="tab-resumen" role="tabpanel">
+        
+        <!-- KPIs Row -->
+        <div class="row g-3 mb-4">
+          <!-- Facebook Posts -->
+          <div class="col-md-6 col-lg-3">
+            <div class="card card-kpi border-start border-primary border-4 shadow-sm h-100">
+              <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <span class="text-muted text-uppercase fw-bold fs-7">Publicaciones Facebook</span>
+                  <i class="bi bi-facebook fs-4 text-primary"></i>
+                </div>
+                <div class="fs-2 fw-bold text-dark" id="kpi-fb-posts">-</div>
+                <div class="d-flex gap-2 mt-2">
+                  <span class="badge bg-success-subtle text-success border border-success-subtle" id="badge-fb-reales">0 reales</span>
+                  <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle" id="badge-fb-demo">0 demo</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Instagram Posts -->
+          <div class="col-md-6 col-lg-3">
+            <div class="card card-kpi border-start border-danger border-4 shadow-sm h-100">
+              <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <span class="text-muted text-uppercase fw-bold fs-7">Publicaciones Instagram</span>
+                  <i class="bi bi-instagram fs-4 text-danger"></i>
+                </div>
+                <div class="fs-2 fw-bold text-dark" id="kpi-ig-posts">-</div>
+                <div class="d-flex gap-2 mt-2">
+                  <span class="badge bg-success-subtle text-success border border-success-subtle" id="badge-ig-reales">0 reales</span>
+                  <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle" id="badge-ig-demo">0 demo</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Comentarios -->
+          <div class="col-md-6 col-lg-3">
+            <div class="card card-kpi border-start border-info border-4 shadow-sm h-100">
+              <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <span class="text-muted text-uppercase fw-bold fs-7">Total Comentarios</span>
+                  <i class="bi bi-chat-quote-fill fs-4 text-info"></i>
+                </div>
+                <div class="fs-2 fw-bold text-dark" id="kpi-comentarios">-</div>
+                <div class="d-flex gap-2 mt-2">
+                  <span class="badge bg-success-subtle text-success border border-success-subtle" id="badge-com-reales">0 reales</span>
+                  <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle" id="badge-com-demo">0 demo</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- BUYERS Identificados -->
+          <div class="col-md-6 col-lg-3">
+            <div class="card card-kpi border-start border-success border-4 shadow-sm h-100">
+              <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <span class="text-muted text-uppercase fw-bold fs-7">BUYERS Identificados</span>
+                  <i class="bi bi-person-check-fill fs-4 text-success"></i>
+                </div>
+                <div class="fs-2 fw-bold text-dark" id="kpi-buyers">-</div>
+                <div class="d-flex gap-2 mt-2">
+                  <span class="badge bg-success-subtle text-success border border-success-subtle" id="badge-buyers-reales">0 reales</span>
+                  <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle" id="badge-buyers-demo">0 demo</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Estado de Agentes y Última Sincronización -->
+        <div class="row g-3 mb-4">
+          <div class="col-lg-8">
+            <div class="card shadow-sm h-100">
+              <div class="card-header bg-white fw-bold d-flex align-items-center justify-content-between">
+                <span><i class="bi bi-cpu-fill me-2 text-primary"></i>Estado de los Agentes Autónomos</span>
+                <span class="badge bg-light text-dark border" id="ultima-sync-hora">Última sinc: Consultando...</span>
+              </div>
+              <div class="card-body">
+                <div class="row g-3">
+                  <!-- Agente Facebook -->
+                  <div class="col-md-4">
+                    <div class="border rounded p-3 h-100 bg-white">
+                      <div class="d-flex align-items-center justify-content-between mb-2">
+                        <strong class="d-flex align-items-center"><i class="bi bi-facebook text-primary me-2"></i>Facebook</strong>
+                        <span id="status-badge-fb" class="badge bg-secondary">...</span>
+                      </div>
+                      <small class="text-muted d-block" id="status-desc-fb">Comprobando conexión...</small>
+                    </div>
+                  </div>
+                  <!-- Agente Instagram -->
+                  <div class="col-md-4">
+                    <div class="border rounded p-3 h-100 bg-white">
+                      <div class="d-flex align-items-center justify-content-between mb-2">
+                        <strong class="d-flex align-items-center"><i class="bi bi-instagram text-danger me-2"></i>Instagram</strong>
+                        <span id="status-badge-ig" class="badge bg-secondary">...</span>
+                      </div>
+                      <small class="text-muted d-block" id="status-desc-ig">Comprobando conexión...</small>
+                    </div>
+                  </div>
+                  <!-- Agente Coordinador & Scheduler -->
+                  <div class="col-md-4">
+                    <div class="border rounded p-3 h-100 bg-white">
+                      <div class="d-flex align-items-center justify-content-between mb-2">
+                        <strong class="d-flex align-items-center"><i class="bi bi-robot text-dark me-2"></i>Coordinador</strong>
+                        <span id="status-badge-coord" class="badge bg-secondary">...</span>
+                      </div>
+                      <small class="text-muted d-block" id="status-desc-coord">Scheduler y automatización</small>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Total Likes / Reacciones -->
+          <div class="col-lg-4">
+            <div class="card shadow-sm h-100">
+              <div class="card-header bg-white fw-bold">
+                <i class="bi bi-hand-thumbs-up-fill me-2 text-warning"></i>Interacción Global (Reacciones)
+              </div>
+              <div class="card-body d-flex flex-column justify-content-around">
+                <div class="d-flex justify-content-between align-items-center border-bottom pb-2">
+                  <span><i class="bi bi-facebook text-primary me-2"></i>Likes / Reacciones FB:</span>
+                  <span class="fw-bold fs-5" id="kpi-likes-fb">0</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center border-bottom pb-2">
+                  <span><i class="bi bi-instagram text-danger me-2"></i>Likes Instagram:</span>
+                  <span class="fw-bold fs-5" id="kpi-likes-ig">0</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center pt-2">
+                  <span class="fw-bold">Total Interacciones Reacciones:</span>
+                  <span class="badge bg-warning text-dark fs-6" id="kpi-likes-total">0</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ============================================================== -->
+      <!-- SECCIÓN 2: FACEBOOK -->
+      <!-- ============================================================== -->
+      <div class="tab-pane fade" id="tab-facebook" role="tabpanel">
+        <div class="card shadow-sm">
+          <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+            <h5 class="mb-0 fw-bold"><i class="bi bi-facebook text-primary me-2"></i>Publicaciones de Facebook</h5>
+            <button class="btn btn-primary btn-sm" onclick="sincronizarPlataforma('facebook')">
+              <i class="bi bi-arrow-repeat me-1"></i>Sincronizar Facebook
+            </button>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0" id="tabla-facebook">
+                <thead class="table-light">
+                  <tr>
+                    <th>Origen</th>
+                    <th>Meta Post ID</th>
+                    <th>Descripción / Texto</th>
+                    <th>Fecha Publicación</th>
+                    <th>Enlace</th>
+                    <th>Métricas (Reacciones)</th>
+                    <th>Estado</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-facebook">
+                  <tr><td colspan="7" class="text-center py-4 text-muted">Cargando publicaciones de Facebook...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================== -->
+      <!-- SECCIÓN 3: INSTAGRAM -->
+      <!-- ============================================================== -->
+      <div class="tab-pane fade" id="tab-instagram" role="tabpanel">
+        <div class="card shadow-sm">
+          <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+            <h5 class="mb-0 fw-bold"><i class="bi bi-instagram text-danger me-2"></i>Publicaciones (Media) de Instagram</h5>
+            <button class="btn btn-danger btn-sm" onclick="sincronizarPlataforma('instagram')">
+              <i class="bi bi-arrow-repeat me-1"></i>Sincronizar Instagram
+            </button>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0" id="tabla-instagram">
+                <thead class="table-light">
+                  <tr>
+                    <th>Origen</th>
+                    <th>Media ID</th>
+                    <th>Caption / Texto</th>
+                    <th>Fecha Publicación</th>
+                    <th>Enlace</th>
+                    <th>Likes / Comentarios</th>
+                    <th>Estado</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-instagram">
+                  <tr><td colspan="7" class="text-center py-4 text-muted">Cargando publicaciones de Instagram...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================== -->
+      <!-- SECCIÓN 4: COMENTARIOS Y CLASIFICACIÓN INTELIGENTE -->
+      <!-- ============================================================== -->
+      <div class="tab-pane fade" id="tab-comentarios" role="tabpanel">
+        <div class="card shadow-sm mb-3">
+          <div class="card-body py-2">
+            <div class="row g-2 align-items-center">
+              <div class="col-md-3">
+                <label class="form-label fs-7 fw-semibold text-muted mb-0">Filtrar por Plataforma:</label>
+                <select class="form-select form-select-sm" id="filtro-com-plat" onchange="cargarComentarios()">
+                  <option value="">Todas las plataformas</option>
+                  <option value="facebook">Facebook</option>
+                  <option value="instagram">Instagram</option>
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fs-7 fw-semibold text-muted mb-0">Filtrar por Intención:</label>
+                <select class="form-select form-select-sm" id="filtro-com-intencion" onchange="cargarComentarios()">
+                  <option value="">Todas las intenciones</option>
+                  <option value="CONSULTA_PRECIO">CONSULTA_PRECIO</option>
+                  <option value="INTERES_PRODUCTO">INTERES_PRODUCTO</option>
+                  <option value="CONSULTA_PROMOCION">CONSULTA_PROMOCION</option>
+                  <option value="CONSULTA_UBICACION">CONSULTA_UBICACION</option>
+                  <option value="CONSULTA_HORARIO">CONSULTA_HORARIO</option>
+                  <option value="CONSULTA_RESERVA">CONSULTA_RESERVA</option>
+                  <option value="OTRO">OTRO</option>
+                </select>
+              </div>
+              <div class="col-md-5 text-md-end mt-3 mt-md-0">
+                <button class="btn btn-outline-primary btn-sm" onclick="cargarComentarios()">
+                  <i class="bi bi-funnel me-1"></i>Aplicar Filtros
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card shadow-sm">
+          <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+            <h5 class="mb-0 fw-bold"><i class="bi bi-chat-dots-fill text-info me-2"></i>Comentarios Captados y Clasificación de Intención</h5>
+            <span class="badge bg-secondary" id="total-comentarios-badge">0 comentarios</span>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0" id="tabla-comentarios">
+                <thead class="table-light">
+                  <tr>
+                    <th>Plataforma</th>
+                    <th>Origen</th>
+                    <th>Publicación</th>
+                    <th>Usuario Disponible</th>
+                    <th>Texto del Comentario</th>
+                    <th>Fecha y Hora</th>
+                    <th>Tipo</th>
+                    <th>BUYER Asociado</th>
+                    <th>Intención Detectada</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-comentarios">
+                  <tr><td colspan="9" class="text-center py-4 text-muted">Cargando comentarios...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================== -->
+      <!-- SECCIÓN 5: BUYERS -->
+      <!-- ============================================================== -->
+      <div class="tab-pane fade" id="tab-buyers" role="tabpanel">
+        <div class="card shadow-sm">
+          <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+            <h5 class="mb-0 fw-bold"><i class="bi bi-people-fill text-success me-2"></i>Prospectos Identificados (BUYERS)</h5>
+            <span class="badge bg-success" id="total-buyers-badge">0 BUYERS</span>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0" id="tabla-buyers">
+                <thead class="table-light">
+                  <tr>
+                    <th>ID BUYER</th>
+                    <th>Origen</th>
+                    <th>Plataforma</th>
+                    <th>Publicación Origen</th>
+                    <th>Referencia Externa</th>
+                    <th>Fecha Primer Contacto</th>
+                    <th>Estado</th>
+                    <th>Interacciones</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-buyers">
+                  <tr><td colspan="8" class="text-center py-4 text-muted">Cargando BUYERS...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================== -->
+      <!-- SECCIÓN 6: ADMINISTRACIÓN -->
+      <!-- ============================================================== -->
+      <div class="tab-pane fade" id="tab-admin" role="tabpanel">
+        
+        <!-- Acciones Manuales Protegidas -->
+        <div class="card shadow-sm mb-4 border-warning">
+          <div class="card-header bg-warning-subtle fw-bold text-dark d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-shield-lock-fill me-2 text-warning"></i>Acciones Administrativas de Sincronización</span>
+            <small class="text-muted"><i class="bi bi-lock-fill me-1"></i>Protegido por ADMIN_API_KEY</small>
+          </div>
+          <div class="card-body">
+            <p class="text-muted fs-7 mb-3">
+              Ejecuta la sincronización inmediata hacia Microsoft SQL Server. Cada ejecución es idempotente y no genera duplicados.
+            </p>
+            <div class="d-flex flex-wrap gap-2">
+              <button class="btn btn-primary" onclick="sincronizarPlataforma('facebook')">
+                <i class="bi bi-facebook me-1"></i>Sincronizar Facebook
+              </button>
+              <button class="btn btn-danger" onclick="sincronizarPlataforma('instagram')">
+                <i class="bi bi-instagram me-1"></i>Sincronizar Instagram
+              </button>
+              <button class="btn btn-dark" onclick="sincronizarPlataforma('todas')">
+                <i class="bi bi-arrow-repeat me-1"></i>Sincronizar Ambas Plataformas
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Auditoría de Acciones de Agentes -->
+        <div class="card shadow-sm">
+          <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+            <h5 class="mb-0 fw-bold"><i class="bi bi-journal-text text-secondary me-2"></i>Auditoría Reciente de Agentes (dbo.accion_agente)</h5>
+            <button class="btn btn-outline-secondary btn-sm" onclick="cargarActividadAgentes()">
+              <i class="bi bi-arrow-clockwise me-1"></i>Recargar Log
+            </button>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-sm table-hover align-middle mb-0 font-monospace fs-7" id="tabla-auditoria">
+                <thead class="table-light">
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Agente</th>
+                    <th>Acción</th>
+                    <th>Resultado</th>
+                    <th>Detalle</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-auditoria">
+                  <tr><td colspan="5" class="text-center py-3 text-muted">Cargando bitácora de actividad...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- Modal Admin API Key -->
+  <div class="modal fade" id="modalAdminKey" tabindex="-1" aria-labelledby="modalAdminKeyLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header bg-dark text-white">
+          <h5 class="modal-title" id="modalAdminKeyLabel"><i class="bi bi-key-fill me-2 text-warning"></i>Autenticación de Administración</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p class="text-muted fs-7">
+            Para ejecutar sincronizaciones manuales se requiere la clave <code>ADMIN_API_KEY</code>.
+            Por seguridad, esta clave <strong>NUNCA</strong> se incrusta en el código fuente HTML o JavaScript.
+          </p>
+          <div class="mb-3">
+            <label for="input-admin-key" class="form-label fw-bold">Clave ADMIN_API_KEY:</label>
+            <input type="password" class="form-control" id="input-admin-key" placeholder="Ingrese el token administrativo">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+          <button type="button" class="btn btn-success" onclick="guardarAdminKey()">Guardar en Sesión</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap 5 JS Bundle -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="/static/js/dashboard.js"></script>
+</body>
+</html>

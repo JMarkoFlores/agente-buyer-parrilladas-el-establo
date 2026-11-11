@@ -120,6 +120,13 @@ class BaseConfig:
     # Token de administración local para proteger la sincronización
     ADMIN_API_KEY = os.getenv("ADMIN_API_KEY", "admin-establo-buyer-secret-2026")
 
+    # Automatización y Scheduler
+    META_SYNC_ENABLED = _to_bool(os.getenv("META_SYNC_ENABLED", "false"), default=False)
+    try:
+        META_SYNC_INTERVAL_MINUTES = int(os.getenv("META_SYNC_INTERVAL_MINUTES", "10"))
+    except ValueError:
+        META_SYNC_INTERVAL_MINUTES = 10
+
 
 
 class DevelopmentConfig(BaseConfig):

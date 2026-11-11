@@ -20,6 +20,8 @@ if __name__ == "__main__":
     print("=" * 60)
     print("  AGENTE INTELIGENTE BUYER — PARRILLADAS EL ESTABLO")
     print(f"  Servidor Flask iniciado en: http://localhost:{port}")
+    print(f"  Dashboard Web Local:        http://localhost:{port}/dashboard")
+    print(f"  Estado de Agentes:          http://localhost:{port}/api/agentes/status")
     print(f"  Diagnóstico de BD:          http://localhost:{port}/api/db/status")
     print(f"  Health check:               http://localhost:{port}/api/health")
     print(f"  Resumen analítico:          http://localhost:{port}/api/estadisticas/resumen")

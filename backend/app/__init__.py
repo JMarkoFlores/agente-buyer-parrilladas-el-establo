@@ -55,6 +55,8 @@ def create_app(config_class: type[BaseConfig] | BaseConfig | None = None) -> Fla
         estadisticas_bp,
         facebook_bp,
         instagram_bp,
+        agentes_bp,
+        dashboard_bp,
     )
 
     application.register_blueprint(health_bp, url_prefix="/api")
@@ -67,6 +69,13 @@ def create_app(config_class: type[BaseConfig] | BaseConfig | None = None) -> Fla
     application.register_blueprint(estadisticas_bp, url_prefix="/api")
     application.register_blueprint(facebook_bp, url_prefix="/api/facebook")
     application.register_blueprint(instagram_bp, url_prefix="/api/instagram")
+    application.register_blueprint(agentes_bp, url_prefix="/api/agentes")
+    application.register_blueprint(dashboard_bp)
+
+    # 6. Inicializar Scheduler de sincronización automática
+    from app.services.sync_scheduler import SyncSchedulerService
+    if not application.config.get("TESTING", False):
+        SyncSchedulerService.init_app(application)
 
     # 6. Manejadores globales de errores JSON
     @application.errorhandler(404)
