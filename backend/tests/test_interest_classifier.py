@@ -15,6 +15,12 @@ from app.services.interest_classifier import (
     CATEGORIA_CONSULTA_UBICACION,
     CATEGORIA_CONSULTA_HORARIO,
     CATEGORIA_CONSULTA_RESERVA,
+    CATEGORIA_ELOGIO,
+    CATEGORIA_AGRADECIMIENTO,
+    CATEGORIA_EMOJI_POSITIVO,
+    CATEGORIA_INAPROPIADO,
+    CATEGORIA_SPAM,
+    CATEGORIA_DATOS_SENSIBLES,
     CATEGORIA_OTRO,
     normalizar_texto,
 )
@@ -45,7 +51,7 @@ def test_clasificacion_interes_producto():
     assert InterestClassifier.clasificar("me interesa probar la carne") == CATEGORIA_INTERES_PRODUCTO
     assert InterestClassifier.clasificar("Más información por favor") == CATEGORIA_INTERES_PRODUCTO
     assert InterestClassifier.clasificar("Solicito info") == CATEGORIA_INTERES_PRODUCTO
-    assert InterestClassifier.clasificar("Se ve delicioso el corte de asado") == CATEGORIA_INTERES_PRODUCTO
+    assert InterestClassifier.clasificar("Quiero probar la picaña") == CATEGORIA_INTERES_PRODUCTO
 
 
 def test_clasificacion_consulta_promocion():
@@ -79,11 +85,45 @@ def test_clasificacion_consulta_reserva():
     assert InterestClassifier.clasificar("Deseo hacer una reservación para el viernes") == CATEGORIA_CONSULTA_RESERVA
 
 
+def test_clasificacion_elogio():
+    """Ejemplos de elogios y comentarios positivos."""
+    assert InterestClassifier.clasificar("Buen asado") == CATEGORIA_ELOGIO
+    assert InterestClassifier.clasificar("Buena atención.") == CATEGORIA_ELOGIO
+    assert InterestClassifier.clasificar("Excelente foto") == CATEGORIA_ELOGIO
+    assert InterestClassifier.clasificar("¡Excelente servicio!") == CATEGORIA_ELOGIO
+    assert InterestClassifier.clasificar("La comida está buenísima") == CATEGORIA_ELOGIO
+    assert InterestClassifier.clasificar("Se ve delicioso el corte de asado") == CATEGORIA_ELOGIO
+
+
+def test_clasificacion_agradecimiento():
+    """Ejemplos de agradecimiento y confirmaciones positivas."""
+    assert InterestClassifier.clasificar("Perfecto") == CATEGORIA_AGRADECIMIENTO
+    assert InterestClassifier.clasificar("muchas gracias") == CATEGORIA_AGRADECIMIENTO
+    assert InterestClassifier.clasificar("Gracias!") == CATEGORIA_AGRADECIMIENTO
+
+
+def test_clasificacion_emojis_positivos():
+    """Ejemplos de comentarios compuestos por emojis positivos."""
+    assert InterestClassifier.clasificar("👍") == CATEGORIA_EMOJI_POSITIVO
+    assert InterestClassifier.clasificar("👍👍👍") == CATEGORIA_EMOJI_POSITIVO
+    assert InterestClassifier.clasificar("🔥🥩") == CATEGORIA_EMOJI_POSITIVO
+    assert InterestClassifier.clasificar("👏") == CATEGORIA_EMOJI_POSITIVO
+
+
+def test_clasificacion_seguridad_y_spam():
+    """Comentarios ofensivos, inapropiados o spam."""
+    assert InterestClassifier.clasificar("Son unos estafadores ladrones") == CATEGORIA_INAPROPIADO
+    assert InterestClassifier.clasificar("Una porquería de servicio, apestan") == CATEGORIA_INAPROPIADO
+    assert InterestClassifier.clasificar("Visiten https://crypto-scam.com") == CATEGORIA_SPAM
+    assert InterestClassifier.clasificar("Únanse a t.me/canal_scam") == CATEGORIA_SPAM
+    assert InterestClassifier.clasificar("Mi tarjeta es 4532 1234 5678 9010") == CATEGORIA_DATOS_SENSIBLES
+
+
 def test_clasificacion_otro():
-    """Comentarios que no indican una intención clara de compra o consulta."""
-    assert InterestClassifier.clasificar("Buena atención.") == CATEGORIA_OTRO
-    assert InterestClassifier.clasificar("Excelente foto") == CATEGORIA_OTRO
-    assert InterestClassifier.clasificar("👍") == CATEGORIA_OTRO
+    """Comentarios que no indican una intención interpretable o son ruido/ininteligibles."""
+    assert InterestClassifier.clasificar("??????") == CATEGORIA_OTRO
+    assert InterestClassifier.clasificar("asdfghjk") == CATEGORIA_OTRO
+    assert InterestClassifier.clasificar("123456") == CATEGORIA_OTRO
     assert InterestClassifier.clasificar("") == CATEGORIA_OTRO
     assert InterestClassifier.clasificar(None) == CATEGORIA_OTRO
 

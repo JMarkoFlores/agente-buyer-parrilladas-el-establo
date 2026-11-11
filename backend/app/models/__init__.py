@@ -20,6 +20,7 @@ from app.models.web import VisitanteWeb, VisitaWeb, EventoWeb
 from app.models.whatsapp import SesionWhatsapp, MensajeWhatsapp
 from app.models.conversion import FormularioCaptacion, LeadConversion, HistorialFases
 from app.models.auditoria import EventoIntegracion, AccionAgente
+from app.models.respuesta_automatica import RespuestaAutomatica
 
 __all__ = [
     # 1. Catálogos (3)
@@ -51,4 +52,6 @@ __all__ = [
     # 7. Auditoría / Agentes (2)
     "EventoIntegracion",
     "AccionAgente",
+    # 8. Automatización de Respuestas (1)
+    "RespuestaAutomatica",
 ]

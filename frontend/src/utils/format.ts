@@ -93,6 +93,48 @@ export function getIntentColor(intent: string): {
         border: 'border-rose-200 dark:border-rose-800',
         dot: 'bg-rose-500',
       };
+    case 'ELOGIO':
+      return {
+        bg: 'bg-orange-50 dark:bg-orange-950/40',
+        text: 'text-orange-700 dark:text-orange-300',
+        border: 'border-orange-200 dark:border-orange-800',
+        dot: 'bg-orange-500',
+      };
+    case 'AGRADECIMIENTO':
+      return {
+        bg: 'bg-teal-50 dark:bg-teal-950/40',
+        text: 'text-teal-700 dark:text-teal-300',
+        border: 'border-teal-200 dark:border-teal-800',
+        dot: 'bg-teal-500',
+      };
+    case 'EMOJI_POSITIVO':
+      return {
+        bg: 'bg-amber-50 dark:bg-amber-950/40',
+        text: 'text-amber-800 dark:text-amber-200',
+        border: 'border-amber-200 dark:border-amber-700',
+        dot: 'bg-amber-500',
+      };
+    case 'SALUDO':
+      return {
+        bg: 'bg-indigo-50 dark:bg-indigo-950/40',
+        text: 'text-indigo-700 dark:text-indigo-300',
+        border: 'border-indigo-200 dark:border-indigo-800',
+        dot: 'bg-indigo-500',
+      };
+    case 'INAPROPIADO':
+      return {
+        bg: 'bg-red-50 dark:bg-red-950/40',
+        text: 'text-red-700 dark:text-red-300',
+        border: 'border-red-200 dark:border-red-800',
+        dot: 'bg-red-500',
+      };
+    case 'SPAM':
+      return {
+        bg: 'bg-zinc-100 dark:bg-zinc-800',
+        text: 'text-zinc-700 dark:text-zinc-300',
+        border: 'border-zinc-200 dark:border-zinc-700',
+        dot: 'bg-zinc-500',
+      };
     default:
       return {
         bg: 'bg-slate-100 dark:bg-slate-800',

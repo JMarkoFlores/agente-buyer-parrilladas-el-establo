@@ -29,6 +29,13 @@ CATEGORIA_CONSULTA_PROMOCION = "CONSULTA_PROMOCION"
 CATEGORIA_CONSULTA_UBICACION = "CONSULTA_UBICACION"
 CATEGORIA_CONSULTA_HORARIO = "CONSULTA_HORARIO"
 CATEGORIA_CONSULTA_RESERVA = "CONSULTA_RESERVA"
+CATEGORIA_ELOGIO = "ELOGIO"
+CATEGORIA_AGRADECIMIENTO = "AGRADECIMIENTO"
+CATEGORIA_EMOJI_POSITIVO = "EMOJI_POSITIVO"
+CATEGORIA_SALUDO = "SALUDO"
+CATEGORIA_INAPROPIADO = "INAPROPIADO"
+CATEGORIA_SPAM = "SPAM"
+CATEGORIA_DATOS_SENSIBLES = "DATOS_SENSIBLES"
 CATEGORIA_OTRO = "OTRO"
 
 CATEGORIAS_VALIDAS = [
@@ -38,6 +45,13 @@ CATEGORIAS_VALIDAS = [
     CATEGORIA_CONSULTA_UBICACION,
     CATEGORIA_CONSULTA_HORARIO,
     CATEGORIA_CONSULTA_RESERVA,
+    CATEGORIA_ELOGIO,
+    CATEGORIA_AGRADECIMIENTO,
+    CATEGORIA_EMOJI_POSITIVO,
+    CATEGORIA_SALUDO,
+    CATEGORIA_INAPROPIADO,
+    CATEGORIA_SPAM,
+    CATEGORIA_DATOS_SENSIBLES,
     CATEGORIA_OTRO,
 ]
 
@@ -75,6 +89,24 @@ class InterestClassifier:
     para comentarios sobre Parrilladas El Establo.
     """
 
+    # Patrones para filtros de seguridad y elegibilidad
+    PATRONES_INAPROPIADO: list[re.Pattern] = [
+        re.compile(r"\b(estafad?or(es|as)?|estafas?|rateros?|ladron(es)?|ladrona|raterio|mierda|carajo|puta|putos?|hdp|ctm|conchatumadre|asco|porqueria|asqueroso|basura|apestan|horrible|pesimo|malisimo|estafando|son\s+una\s+estafa)\b"),
+        re.compile(r"\b(denuncia|indecopi|ladrones|porqueria\s+de\s+comida|comida\s+fria|pesima\s+atencion)\b"),
+    ]
+
+    PATRONES_DATOS_SENSIBLES: list[re.Pattern] = [
+        re.compile(r"\b(?:\d[ -]*?){13,16}\b"),
+        re.compile(r"\b(mi\s+clave|mi\s+password|mi\s+cvv|mi\s+tarjeta\s+es)\b"),
+    ]
+
+    PATRONES_SPAM: list[re.Pattern] = [
+        re.compile(r"\b(t\.me/|wa\.me/|bit\.ly/|chat\.whatsapp\.com/|crypto|forex|inversiones\s+rentables)\b"),
+    ]
+
+    # Conjunto de emojis positivos reconocidos
+    EMOJIS_POSITIVOS_SET = {"👍", "🔥", "🥩", "❤️", "👏", "😍", "🤤", "😋", "🙌", "👌", "💯", "🍻", "🥂", "🍖", "🍽️", "🐮", "🤠", "🍴", "✨", "🔝", "🎉"}
+
     # Reglas ordenadas por especificidad:
     # 1. Consulta de reserva (mesa, separar, agendar)
     # 2. Consulta de precio (cuanto cuesta, precio, valor)
@@ -82,7 +114,10 @@ class InterestClassifier:
     # 4. Consulta de ubicación (donde, direccion, ubicacion, local)
     # 5. Consulta de horario (a que hora, atienden, horario, abren)
     # 6. Interés en producto (interes, me interesa, picaña, carne, cortes, carta)
-    # 7. OTRO
+    # 7. Elogio (buen asado, excelente servicio, deliciosa carne, lo mejor, espectacular)
+    # 8. Agradecimiento (perfecto, gracias, muchas gracias, genial, listo, de acuerdo)
+    # 9. Saludo (hola, buenas tardes, buenos dias)
+    # 10. OTRO
 
     PATRONES: list[tuple[str, list[re.Pattern]]] = [
         (
@@ -131,6 +166,19 @@ class InterestClassifier:
                 re.compile(r"\b(atienden\s+hoy|abierto\s+hoy|abren\s+hoy|estan\s+abiertos)\b"),
                 re.compile(r"\b(dias\s+de\s+atencion|dias\s+que\s+atienden|atienden\s+domingos)\b"),
                 re.compile(r"\b(hora\s+de\s+cierre|hora\s+de\s+atencion)\b"),
+                re.compile(r"\b(feriado|feriados|dias\s+feriados|en\s+feriados)\b"),
+                re.compile(r"\b(atencion\s+en\s+feriados|atienden\s+en\s+feriados|abren\s+en\s+feriados)\b"),
+                re.compile(r"\b(atencion\s+feriados|atienden\s+feriados|abren\s+feriados)\b"),
+                re.compile(r"\bahi\s+atencion\s+en\s+feriados\b"),
+            ],
+        ),
+        (
+            CATEGORIA_ELOGIO,
+            [
+                re.compile(r"\b(buen\s+asado|buena\s+parrilla|buen\s+corte|buena\s+carne|buena\s+atencion|buen\s+servicio|excelente\s+servicio|excelente\s+atencion)\b"),
+                re.compile(r"\b(buenazo|buenisimo|excelente|delicioso|espectacular|muy\s+rico|rico\s+asado|los\s+mejores|gran\s+lugar|recomendado|recomendadazo|felicitaciones|lo\s+maximo|me\s+encanta|pura\s+calidad)\b"),
+                re.compile(r"\b(que\s+rico|que\s+delicia|que\s+bueno|se\s+ve\s+buenazo|se\s+ve\s+espectacular|lo\s+mejor\s+de)\b"),
+                re.compile(r"\b(excelente\s+foto|buena\s+foto|buen\s+plato|buenisima)\b"),
             ],
         ),
         (
@@ -144,7 +192,36 @@ class InterestClassifier:
                 re.compile(r"\b(atienden\s+grupos|familiar|grupos\s+familiares)\b"),
             ],
         ),
+        (
+            CATEGORIA_AGRADECIMIENTO,
+            [
+                re.compile(r"\b(perfecto|muchas\s+gracias|mil\s+gracias|gracias|genial|listo|de\s+acuerdo|excelente\s+gracias|muchas\s+gracias\s+a\s+ustedes)\b"),
+                re.compile(r"^(ok|vale|bien|entendido|gracias|perfecto|genial|listo|de\s+acuerdo)$"),
+            ],
+        ),
+        (
+            CATEGORIA_SALUDO,
+            [
+                re.compile(r"\b(hola|buenos\s+dias|buenas\s+tardes|buenas\s+noches|saludos|que\s+tal|hola\s+amigos)\b"),
+            ],
+        ),
     ]
+
+    @classmethod
+    def es_emoji_positivo(cls, texto: str | None) -> bool:
+        """Determina si el texto está compuesto fundamentalmente por emojis positivos."""
+        if not texto:
+            return False
+        clean = texto.strip()
+        if not clean:
+            return False
+        # Eliminar signos de exclamación, interrogación, puntos y espacios
+        solo_caracteres = re.sub(r"[\s¿?¡!.,;:()\-_/\\\"'#*]+", "", clean)
+        if not solo_caracteres:
+            return False
+        # Comprobar si los caracteres restantes son en su gran mayoría emojis positivos
+        emojis_encontrados = [c for c in solo_caracteres if c in cls.EMOJIS_POSITIVOS_SET]
+        return len(emojis_encontrados) > 0 and len(emojis_encontrados) >= len(solo_caracteres) * 0.7
 
     @classmethod
     def clasificar(cls, texto: str | None) -> str:
@@ -155,10 +232,38 @@ class InterestClassifier:
         if not texto or not texto.strip():
             return CATEGORIA_OTRO
 
-        normalizado = normalizar_texto(texto)
+        raw_text = texto.strip()
+
+        # 1. Filtro de seguridad: Contenido inapropiado / quejas severas / insultos
+        normalizado = normalizar_texto(raw_text)
+        for p in cls.PATRONES_INAPROPIADO:
+            if p.search(normalizado):
+                return CATEGORIA_INAPROPIADO
+
+        # 2. Filtro de seguridad: Datos personales / sensibles
+        for p in cls.PATRONES_DATOS_SENSIBLES:
+            if p.search(raw_text):
+                return CATEGORIA_DATOS_SENSIBLES
+
+        # 3. Filtro de spam y enlaces externos no autorizados
+        for p in cls.PATRONES_SPAM:
+            if p.search(raw_text):
+                return CATEGORIA_SPAM
+
+        # Si incluye una URL desconocida que no sea del propio restaurante
+        if re.search(r"https?://", raw_text, re.IGNORECASE):
+            es_propio = "elestablo" in raw_text.lower() or "facebook.com" in raw_text.lower() or "instagram.com" in raw_text.lower()
+            if not es_propio:
+                return CATEGORIA_SPAM
+
+        # 4. Emojis positivos (ej. 👍, 🔥, 🥩, 👍👍👍)
+        if cls.es_emoji_positivo(raw_text):
+            return CATEGORIA_EMOJI_POSITIVO
+
         if not normalizado or len(normalizado) < 2:
             return CATEGORIA_OTRO
 
+        # 5. Evaluación de patrones de negocio (Comercial, Elogio, Agradecimiento, Saludo)
         for categoria, patrones in cls.PATRONES:
             for patron in patrones:
                 if patron.search(normalizado):

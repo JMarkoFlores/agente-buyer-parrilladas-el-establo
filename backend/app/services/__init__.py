@@ -7,6 +7,7 @@ from app.services.stats_service import StatsService
 from app.services.facebook_service import FacebookService
 from app.services.instagram_service import InstagramService
 from app.services.data_filter_service import DataFilterService
+from app.services.auto_reply_service import AutoReplyService
 
 __all__ = [
     "BuyerService",
@@ -15,5 +16,6 @@ __all__ = [
     "FacebookService",
     "InstagramService",
     "DataFilterService",
+    "AutoReplyService",
 ]
 

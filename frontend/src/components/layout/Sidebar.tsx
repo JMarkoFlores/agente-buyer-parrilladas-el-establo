@@ -9,6 +9,7 @@ import {
   Bot,
   ClipboardList,
   Settings,
+  MessageSquareReply,
   X,
   Flame,
   Activity,
@@ -36,6 +37,7 @@ const navItems: NavItem[] = [
   { number: '6', name: 'Agentes Inteligentes', to: '/agents', icon: Bot },
   { number: '7', name: 'Auditoría', to: '/audit', icon: ClipboardList },
   { number: '8', name: 'Configuración', to: '/settings', icon: Settings },
+  { number: '9', name: 'Respuestas automáticas', to: '/auto-replies', icon: MessageSquareReply },
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {

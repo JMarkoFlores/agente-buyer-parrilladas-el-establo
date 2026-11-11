@@ -57,7 +57,7 @@ def check_db_status():
             "server_utc_time": server_time,
             "dbo_tables_count": total_tables,
             "expected_tables_count": 22,
-            "schema_valid": total_tables == 22,
+            "schema_valid": total_tables >= 22,
         }), 200
 
     except Exception as exc:

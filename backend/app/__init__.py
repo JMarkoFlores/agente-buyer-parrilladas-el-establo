@@ -57,6 +57,7 @@ def create_app(config_class: type[BaseConfig] | BaseConfig | None = None) -> Fla
         instagram_bp,
         agentes_bp,
         dashboard_bp,
+        auto_reply_bp,
     )
 
     application.register_blueprint(health_bp, url_prefix="/api")
@@ -70,6 +71,7 @@ def create_app(config_class: type[BaseConfig] | BaseConfig | None = None) -> Fla
     application.register_blueprint(facebook_bp, url_prefix="/api/facebook")
     application.register_blueprint(instagram_bp, url_prefix="/api/instagram")
     application.register_blueprint(agentes_bp, url_prefix="/api/agentes")
+    application.register_blueprint(auto_reply_bp, url_prefix="/api/respuestas")
     application.register_blueprint(dashboard_bp)
 
     # 6. Inicializar Scheduler de sincronización automática

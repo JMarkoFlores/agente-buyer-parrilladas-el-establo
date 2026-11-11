@@ -270,3 +270,117 @@ export interface HealthResponse {
   timestamp_utc: string;
   stage: string;
 }
+
+export type AutoReplyStatusType =
+  | 'PENDIENTE'
+  | 'APROBADA'
+  | 'SIMULADA'
+  | 'ENVIANDO'
+  | 'ENVIADA'
+  | 'FALLIDA'
+  | 'OMITIDA'
+  | 'REQUIERE_REVISION';
+
+export interface AutoReplyItem {
+  id_respuesta: number;
+  id_interaccion: number;
+  id_buyer: number | null;
+  id_plataforma: number;
+  plataforma_codigo: 'FACEBOOK' | 'INSTAGRAM' | string;
+  intencion_detectada: string;
+  texto_respuesta: string;
+  id_respuesta_meta: string | null;
+  estado: AutoReplyStatusType;
+  tipo_envio: 'AUTOMATICO' | 'MANUAL_APROBADO' | 'SIMULADO' | string;
+  fecha_generacion: string;
+  fecha_envio: string | null;
+  error_detalle: string | null;
+  comentario_original?: {
+    id_interaccion: number;
+    id_interaccion_externa: string;
+    nombre_usuario: string | null;
+    texto: string | null;
+    fecha_interaccion: string;
+    tipo: string;
+  } | null;
+  id_publicacion?: number | null;
+  url_publicacion?: string | null;
+}
+
+export interface AutoReplyStatus {
+  config: {
+    enabled: boolean;
+    dry_run: boolean;
+    require_review: boolean;
+    facebook_enabled: boolean;
+    instagram_enabled: boolean;
+    form_url: string;
+    landing_url: string;
+    max_per_cycle: number;
+    cooldown_hours: number;
+  };
+  metricas: {
+    total_comentarios_reales: number;
+    total_respuestas: number;
+    pendientes: number;
+    aprobadas: number;
+    simuladas: number;
+    enviadas: number;
+    fallidas: number;
+    omitidas: number;
+  };
+}
+
+export interface AutoReplyResponse {
+  success: boolean;
+  total: number;
+  limit: number;
+  offset: number;
+  data: AutoReplyItem[];
+}
+
+export interface CommentTraceabilityItem {
+  id_interaccion: number;
+  id_interaccion_externa: string;
+  id_publicacion: number;
+  plataforma: 'FACEBOOK' | 'INSTAGRAM' | string;
+  fecha_interaccion: string | null;
+  usuario_nombre: string;
+  usuario_id: string | null;
+  texto_comentario: string;
+  intencion_detectada: string;
+  estado_trazabilidad: string;
+  motivo_trazabilidad: string;
+  tiene_respuesta: boolean;
+  id_respuesta: number | null;
+  texto_respuesta: string | null;
+  id_respuesta_meta: string | null;
+  fecha_envio: string | null;
+  error_detalle: string | null;
+}
+
+export interface CommentTraceabilitySummary {
+  total_evaluados: number;
+  respondidos_meta: number;
+  simulados: number;
+  pendientes_revision: number;
+  aprobados_cola: number;
+  bloqueados_cooldown: number;
+  omitidos_sin_intencion: number;
+  omitidos_propios: number;
+  fallidos: number;
+  descartados_manual: number;
+  pendientes_evaluacion: number;
+}
+
+export interface CommentTraceabilityResponse {
+  success: boolean;
+  data: {
+    total: number;
+    limit: number;
+    offset: number;
+    resumen: CommentTraceabilitySummary;
+    items: CommentTraceabilityItem[];
+  };
+}
+

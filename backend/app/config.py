@@ -147,6 +147,24 @@ class BaseConfig:
 
     META_SYNC_INTERVAL_MINUTES = round(META_SYNC_INTERVAL_SECONDS / 60.0, 2)
 
+    # Configuración del Agente de Respuestas Automáticas
+    AUTO_REPLY_ENABLED = _to_bool(os.getenv("AUTO_REPLY_ENABLED", "false"), default=False)
+    AUTO_REPLY_DRY_RUN = _to_bool(os.getenv("AUTO_REPLY_DRY_RUN", "true"), default=True)
+    AUTO_REPLY_REQUIRE_REVIEW = _to_bool(os.getenv("AUTO_REPLY_REQUIRE_REVIEW", "true"), default=True)
+    AUTO_REPLY_FACEBOOK_ENABLED = _to_bool(os.getenv("AUTO_REPLY_FACEBOOK_ENABLED", "true"), default=True)
+    AUTO_REPLY_INSTAGRAM_ENABLED = _to_bool(os.getenv("AUTO_REPLY_INSTAGRAM_ENABLED", "true"), default=True)
+    AUTO_REPLY_FORM_URL = os.getenv("AUTO_REPLY_FORM_URL", "https://elestablo.giansmd.dev/registro/")
+    AUTO_REPLY_LANDING_URL = os.getenv("AUTO_REPLY_LANDING_URL", "https://elestablo.giansmd.dev/")
+    try:
+        AUTO_REPLY_MAX_PER_CYCLE = int(os.getenv("AUTO_REPLY_MAX_PER_CYCLE", "5"))
+    except ValueError:
+        AUTO_REPLY_MAX_PER_CYCLE = 5
+    try:
+        AUTO_REPLY_COOLDOWN_HOURS = int(os.getenv("AUTO_REPLY_COOLDOWN_HOURS", "24"))
+    except ValueError:
+        AUTO_REPLY_COOLDOWN_HOURS = 24
+
+
 
 
 class DevelopmentConfig(BaseConfig):

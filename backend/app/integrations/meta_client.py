@@ -670,3 +670,48 @@ class MetaGraphClient:
         except MetaClientError as exc:
             logger.warning("Error al consultar insights para media IG %s: %s", clean_media_id, str(exc))
             return None
+
+    # =========================================================================
+    # Respuestas Automáticas a Comentarios (Auto-Reply)
+    # =========================================================================
+
+    def reply_facebook_comment(self, comment_id: str, message: str) -> dict[str, Any]:
+        """
+        Publica una respuesta a un comentario específico de Facebook FanPage.
+        Endpoint: POST /{comment-id}/comments
+        Parámetro: message
+        Retorna el identificador asignado por Meta: {'id': '...'}
+        """
+        clean_comment_id = (comment_id or "").strip()
+        if not clean_comment_id:
+            raise MetaClientError("Se requiere un comment_id válido para responder en Facebook.")
+
+        clean_message = (message or "").strip()
+        if not clean_message:
+            raise MetaClientError("El mensaje de respuesta no puede estar vacío.")
+
+        logger.info("Enviando respuesta a comentario de Facebook ID %s...", clean_comment_id)
+        endpoint = f"{clean_comment_id}/comments"
+        payload = {"message": clean_message}
+        return self._request("POST", endpoint, data=payload)
+
+    def reply_instagram_comment(self, comment_id: str, message: str) -> dict[str, Any]:
+        """
+        Publica una respuesta a un comentario específico de Instagram Media.
+        Endpoint: POST /{ig-comment-id}/replies
+        Parámetro: message
+        Retorna el identificador asignado por Meta: {'id': '...'}
+        """
+        clean_comment_id = (comment_id or "").strip()
+        if not clean_comment_id:
+            raise MetaClientError("Se requiere un comment_id válido para responder en Instagram.")
+
+        clean_message = (message or "").strip()
+        if not clean_message:
+            raise MetaClientError("El mensaje de respuesta no puede estar vacío.")
+
+        logger.info("Enviando respuesta a comentario de Instagram ID %s...", clean_comment_id)
+        endpoint = f"{clean_comment_id}/replies"
+        payload = {"message": clean_message}
+        return self._request("POST", endpoint, data=payload)
+

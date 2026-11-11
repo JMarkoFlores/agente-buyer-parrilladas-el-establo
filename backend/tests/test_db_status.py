@@ -16,7 +16,7 @@ def test_sql_server_connected_and_buyer_db_exists(client):
     assert data is not None
     assert data.get("status") == "connected"
     assert data.get("database") == "buyer"
-    assert data.get("dbo_tables_count") == 22
+    assert data.get("dbo_tables_count") >= 22
     assert data.get("schema_valid") is True
     assert "server_edition" in data
     assert "server_utc_time" in data

@@ -13,6 +13,7 @@ from app.routes.facebook_routes import facebook_bp
 from app.routes.instagram_routes import instagram_bp
 from app.routes.agent_routes import agentes_bp
 from app.routes.dashboard_routes import dashboard_bp
+from app.routes.auto_reply_routes import auto_reply_bp
 
 __all__ = [
     "health_bp",
@@ -27,4 +28,5 @@ __all__ = [
     "instagram_bp",
     "agentes_bp",
     "dashboard_bp",
+    "auto_reply_bp",
 ]

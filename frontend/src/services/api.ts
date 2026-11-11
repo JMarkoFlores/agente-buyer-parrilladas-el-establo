@@ -11,6 +11,10 @@ import type {
   DbStatusResponse,
   HealthResponse,
   AgentsStatusResponse,
+  AutoReplyStatus,
+  AutoReplyResponse,
+  AutoReplyItem,
+  CommentTraceabilityResponse,
 } from '../types';
 
 const api = axios.create({
@@ -202,6 +206,91 @@ export const ApiService = {
     resultado?: string;
   }): Promise<AuditResponse> {
     const res = await api.get<AuditResponse>('/agentes/actividad', { params });
+    return res.data;
+  },
+
+  // Agente de Respuestas Automáticas
+  async getAutoReplyStatus(): Promise<AutoReplyStatus> {
+    const res = await api.get<{ success: boolean; data: AutoReplyStatus }>('/respuestas/status');
+    return res.data.data;
+  },
+
+  async getPendingAutoReplies(params?: {
+    limit?: number;
+    offset?: number;
+    plataforma?: string;
+  }): Promise<AutoReplyResponse> {
+    const res = await api.get<AutoReplyResponse>('/respuestas/pendientes', { params });
+    return res.data;
+  },
+
+  async getAutoReplyHistory(params?: {
+    limit?: number;
+    offset?: number;
+    estado?: string;
+    plataforma?: string;
+  }): Promise<AutoReplyResponse> {
+    const res = await api.get<AutoReplyResponse>('/respuestas/historial', { params });
+    return res.data;
+  },
+
+  async generateAutoReplies(max?: number): Promise<{
+    success: boolean;
+    total_evaluados: number;
+    propuestas_generadas: number;
+    omitidos: number;
+    items: AutoReplyItem[];
+  }> {
+    const res = await api.post('/respuestas/generar', { max });
+    return res.data;
+  },
+
+  async approveAutoReply(
+    idRespuesta: number,
+    textoRespuesta?: string
+  ): Promise<{ success: boolean; data: AutoReplyItem }> {
+    const res = await api.post(`/respuestas/${idRespuesta}/aprobar`, {
+      texto_respuesta: textoRespuesta,
+    });
+    return res.data;
+  },
+
+  async rejectAutoReply(
+    idRespuesta: number,
+    motivo?: string
+  ): Promise<{ success: boolean; data: AutoReplyItem }> {
+    const res = await api.post(`/respuestas/${idRespuesta}/rechazar`, { motivo });
+    return res.data;
+  },
+
+  async sendAutoReply(idRespuesta: number): Promise<{
+    success: boolean;
+    simulada?: boolean;
+    mensaje?: string;
+    data: AutoReplyItem;
+    error?: string;
+  }> {
+    const res = await api.post(`/respuestas/${idRespuesta}/enviar`, {});
+    return res.data;
+  },
+
+  async getCommentTraceability(params?: {
+    limit?: number;
+    offset?: number;
+    estado?: string;
+    plataforma?: string;
+  }): Promise<CommentTraceabilityResponse> {
+    const res = await api.get<CommentTraceabilityResponse>('/respuestas/trazabilidad', { params });
+    return res.data;
+  },
+
+  async emergencyStopAutoReply(motivo?: string): Promise<{ success: boolean; mensaje: string; data: AutoReplyStatus }> {
+    const res = await api.post('/respuestas/emergency-stop', { motivo });
+    return res.data;
+  },
+
+  async activateAutoReply(): Promise<{ success: boolean; mensaje: string; data: AutoReplyStatus }> {
+    const res = await api.post('/respuestas/activar-auto', {});
     return res.data;
   },
 };

@@ -145,6 +145,23 @@ class BuyerCoordinator:
                     logger.error("[%s] Error en InterestClassifier: %s", self.NOMBRE, str(exc), exc_info=True)
                     resumen_clasificacion = {"error": str(exc)}
 
+            # 3.1 Evaluación y despacho de respuestas automáticas (no bloqueante)
+            resumen_respuestas: dict[str, Any] | None = None
+            try:
+                from app.services.auto_reply_service import AutoReplyService
+                auto_reply_service = AutoReplyService()
+                resumen_respuestas = auto_reply_service.procesar_comentarios_nuevos()
+                logger.info(
+                    "[%s] Respuestas automáticas procesadas: Evaluados=%d, Generadas=%d, Despachadas=%d, Omitidos=%d",
+                    self.NOMBRE,
+                    resumen_respuestas.get("total_evaluados", 0),
+                    resumen_respuestas.get("propuestas_generadas", 0),
+                    resumen_respuestas.get("despachadas_cola", 0),
+                    resumen_respuestas.get("omitidos", 0),
+                )
+            except Exception as exc:
+                logger.warning("[%s] Error no bloqueante al evaluar respuestas automáticas: %s", self.NOMBRE, str(exc))
+
             # 4. Consolidación de métricas
             consolidado = self._consolidar_resultados(
                 resultado_fb=resultado_fb,
@@ -153,6 +170,7 @@ class BuyerCoordinator:
                 inicio=inicio,
                 plataforma_solicitada=plataforma_norm,
             )
+            consolidado["respuestas_automaticas"] = resumen_respuestas
 
             # 5. Auditoría del AgenteCoordinador
             self._registrar_auditoria_coordinador(consolidado)
