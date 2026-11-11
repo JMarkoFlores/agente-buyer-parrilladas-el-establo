@@ -65,9 +65,11 @@ class AccionAgente(db.Model):
             "id_accion": self.id_accion,
             "nombre_agente": self.nombre_agente,
             "id_buyer": self.id_buyer,
+            "id_buyer_asociado": self.id_buyer,
             "id_sesion_whatsapp": self.id_sesion_whatsapp,
             "accion": self.accion,
             "detalle": self.detalle,
+            "detalles": self.detalle,
             "resultado": self.resultado,
             "fecha_ejecucion": self.fecha_ejecucion.isoformat() if self.fecha_ejecucion else None,
         }

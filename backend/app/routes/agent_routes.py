@@ -14,6 +14,7 @@ from sqlalchemy import desc
 from app.services.sync_scheduler import SyncSchedulerService
 from app.agents.buyer_coordinator import SincronizacionEnCursoError
 from app.models.auditoria import AccionAgente
+from app.services.data_filter_service import DataFilterService
 
 agentes_bp = Blueprint("agentes", __name__)
 
@@ -140,6 +141,7 @@ def get_actividad_agentes():
     resultado_filtro = request.args.get("resultado", "").strip().upper()
 
     query = AccionAgente.query
+    query = DataFilterService.apply_real_accion_filter(query)
 
     if agente_filtro:
         query = query.filter(AccionAgente.nombre_agente == agente_filtro)

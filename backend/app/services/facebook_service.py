@@ -22,6 +22,7 @@ from app.integrations.meta_client import (
     mask_token,
 )
 from app.repositories.facebook_repository import FacebookRepository
+from app.services.data_filter_service import DataFilterService
 
 logger = logging.getLogger("facebook_service")
 
@@ -527,13 +528,17 @@ class FacebookService:
     # =========================================================================
 
     def list_publicaciones(self, limit: int = 50, offset: int = 0) -> dict[str, Any]:
-        """Consulta publicaciones de Facebook almacenadas en SQL Server."""
-        items, total = self.repo.get_publicaciones(limit=limit, offset=offset)
+        """Consulta publicaciones de Facebook almacenadas en SQL Server con sus métricas más recientes."""
+        fb_plat = self.repo.get_facebook_platform()
+        plat_id = fb_plat.id_plataforma if fb_plat else 1
+        items, total = DataFilterService.get_real_publicaciones_con_metricas(
+            id_plataforma=plat_id, limit=limit, offset=offset
+        )
         return {
             "total": total,
             "limit": limit,
             "offset": offset,
-            "items": [p.to_dict() for p in items],
+            "items": items,
         }
 
     def list_comentarios(
@@ -548,11 +553,14 @@ class FacebookService:
             return None
 
         items, total = self.repo.get_comentarios_by_publicacion(id_publicacion, limit=limit, offset=offset)
+        serialized_items = [c.to_dict() for c in items]
         return {
             "id_publicacion": id_publicacion,
             "meta_post_id": pub.meta_post_id,
+            "publicacion": pub.to_dict(),
             "total_comentarios": total,
-            "items": [c.to_dict() for c in items],
+            "items": serialized_items,
+            "comentarios": serialized_items,
         }
 
     def list_metricas(

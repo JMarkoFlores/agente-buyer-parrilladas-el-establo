@@ -3,6 +3,7 @@ Repositorio para la entidad Buyer y Prospectos.
 """
 from app.extensions import db
 from app.models.persona import Buyer
+from app.services.data_filter_service import DataFilterService
 
 
 class BuyerRepository:
@@ -12,8 +13,12 @@ class BuyerRepository:
         id_plataforma: int | None = None,
         limit: int = 50,
         offset: int = 0,
+        include_demo: bool = False,
     ) -> tuple[list[Buyer], int]:
         query = db.session.query(Buyer)
+        if not include_demo:
+            query = DataFilterService.apply_real_buyer_filter(query)
+
         if estado:
             query = query.filter(Buyer.estado == estado.upper())
         if id_plataforma is not None:

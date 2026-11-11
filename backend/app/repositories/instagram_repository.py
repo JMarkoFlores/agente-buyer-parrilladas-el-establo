@@ -18,6 +18,7 @@ from app.models.catalogo import Plataforma
 from app.models.marketing import Publicacion, MetricaPublicacionDiaria
 from app.models.persona import Buyer, InteraccionPublicacion
 from app.models.auditoria import EventoIntegracion, AccionAgente
+from app.services.data_filter_service import DataFilterService, DEMO_PUBLICACION_IDS, DEMO_INTERACCION_IDS
 
 logger = logging.getLogger("instagram_repository")
 
@@ -350,7 +351,11 @@ class InstagramRepository:
     # =========================================================================
 
     @staticmethod
-    def get_publicaciones(limit: int = 50, offset: int = 0) -> tuple[list[Publicacion], int]:
+    def get_publicaciones(
+        limit: int = 50,
+        offset: int = 0,
+        include_demo: bool = False,
+    ) -> tuple[list[Publicacion], int]:
         """Lista las publicaciones de Instagram registradas en la base de datos."""
         ig_plat = InstagramRepository.get_instagram_platform()
         if not ig_plat:
@@ -359,8 +364,11 @@ class InstagramRepository:
         query = (
             db.session.query(Publicacion)
             .filter(Publicacion.id_plataforma == ig_plat.id_plataforma)
-            .order_by(Publicacion.fecha_publicacion.desc())
         )
+        if not include_demo:
+            query = DataFilterService.apply_real_publicacion_filter(query)
+
+        query = query.order_by(Publicacion.fecha_publicacion.desc())
         total = query.count()
         items = query.offset(offset).limit(limit).all()
         return items, total
@@ -385,13 +393,17 @@ class InstagramRepository:
         id_publicacion: int,
         limit: int = 100,
         offset: int = 0,
+        include_demo: bool = False,
     ) -> tuple[list[InteraccionPublicacion], int]:
         """Obtiene las interacciones de una publicación de Instagram."""
         query = (
             db.session.query(InteraccionPublicacion)
             .filter(InteraccionPublicacion.id_publicacion == id_publicacion)
-            .order_by(InteraccionPublicacion.fecha_interaccion.asc())
         )
+        if not include_demo:
+            query = DataFilterService.apply_real_interaccion_filter(query)
+
+        query = query.order_by(InteraccionPublicacion.fecha_interaccion.asc())
         total = query.count()
         items = query.offset(offset).limit(limit).all()
         return items, total
@@ -401,6 +413,7 @@ class InstagramRepository:
         id_publicacion: int | None = None,
         limit: int = 50,
         offset: int = 0,
+        include_demo: bool = False,
     ) -> tuple[list[MetricaPublicacionDiaria], int]:
         """Obtiene las métricas diarias registradas para publicaciones de Instagram."""
         query = (
@@ -409,6 +422,11 @@ class InstagramRepository:
             .join(Plataforma, Publicacion.id_plataforma == Plataforma.id_plataforma)
             .filter(Plataforma.codigo == "INSTAGRAM")
         )
+        if not include_demo:
+            query = query.filter(
+                ~Publicacion.meta_post_id.like("DEMO_%"),
+                ~Publicacion.id_publicacion.in_(DEMO_PUBLICACION_IDS),
+            )
 
         if id_publicacion is not None:
             query = query.filter(MetricaPublicacionDiaria.id_publicacion == id_publicacion)

@@ -6,6 +6,14 @@ from app.services.catalog_service import CatalogService
 from app.services.stats_service import StatsService
 from app.services.facebook_service import FacebookService
 from app.services.instagram_service import InstagramService
+from app.services.data_filter_service import DataFilterService
 
-__all__ = ["BuyerService", "CatalogService", "StatsService", "FacebookService", "InstagramService"]
+__all__ = [
+    "BuyerService",
+    "CatalogService",
+    "StatsService",
+    "FacebookService",
+    "InstagramService",
+    "DataFilterService",
+]
 

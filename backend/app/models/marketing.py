@@ -79,6 +79,26 @@ class Publicacion(db.Model):
     interacciones = db.relationship("InteraccionPublicacion", back_populates="publicacion", lazy="select")
 
     def to_dict(self) -> dict[str, Any]:
+        latest_metrica = None
+        if self.metricas:
+            latest_metrica = max(
+                self.metricas,
+                key=lambda m: m.fecha_corte if m.fecha_corte else date.min,
+                default=None,
+            )
+
+        reacciones = latest_metrica.total_reacciones if latest_metrica else None
+        coms_meta = latest_metrica.total_comentarios if latest_metrica else None
+        coms_capturados = (
+            sum(
+                1
+                for i in self.interacciones
+                if not (i.id_interaccion_externa and i.id_interaccion_externa.startswith("DEMO_"))
+            )
+            if self.interacciones
+            else 0
+        )
+
         return {
             "id_publicacion": self.id_publicacion,
             "id_plataforma": self.id_plataforma,
@@ -92,6 +112,11 @@ class Publicacion(db.Model):
             "url_formulario": self.url_formulario,
             "fecha_publicacion": self.fecha_publicacion.isoformat() if self.fecha_publicacion else None,
             "estado": self.estado,
+            "total_reacciones": reacciones,
+            "total_likes": reacciones,
+            "total_comentarios": coms_meta,
+            "comentarios_reportados_meta": coms_meta,
+            "comentarios_capturados": coms_capturados,
         }
 
 

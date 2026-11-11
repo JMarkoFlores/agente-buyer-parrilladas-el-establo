@@ -1,16 +1,17 @@
 """
 Rutas del Dashboard Web y Endpoints Analíticos:
 - GET /dashboard               -> Interfaz web local interactiva (Jinja2 + Bootstrap)
-- GET /api/dashboard/resumen   -> Resumen consolidado (mide datos reales vs DEMO)
-- GET /api/dashboard/comentarios -> Tabla de comentarios con clasificación de intención
-- GET /api/dashboard/buyers    -> Tabla de BUYERS con procedencia e interacciones
+- GET /api/dashboard/resumen   -> Resumen consolidado exclusivamente con datos REALES
+- GET /api/dashboard/comentarios -> Tabla de comentarios reales con clasificación de intención
+- GET /api/dashboard/buyers    -> Tabla de BUYERS reales comprobados con procedencia e interacciones
 """
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 from typing import Any
-from flask import Blueprint, jsonify, render_template, request, current_app, redirect, url_for
-from sqlalchemy import func, desc
+from flask import Blueprint, jsonify, render_template, request
+from sqlalchemy import func, desc, and_
 
 from app.extensions import db
 from app.models.catalogo import Plataforma
@@ -19,23 +20,10 @@ from app.models.persona import Buyer, InteraccionPublicacion
 from app.models.auditoria import AccionAgente
 from app.services.interest_classifier import InterestClassifier
 from app.services.sync_scheduler import SyncSchedulerService
+from app.services.data_filter_service import DataFilterService
 
+logger = logging.getLogger("dashboard_routes")
 dashboard_bp = Blueprint("dashboard", __name__)
-
-
-def _es_demo_post(meta_post_id: str | None) -> bool:
-    return bool(meta_post_id and meta_post_id.startswith("DEMO_"))
-
-
-def _es_demo_buyer(referencia_externa: str | None) -> bool:
-    if not referencia_externa:
-        return False
-    ref = referencia_externa.upper()
-    return ref.startswith("DEMO_") or ref.startswith("COOKIE_")
-
-
-def _es_demo_comentario(id_interaccion_ext: str | None) -> bool:
-    return bool(id_interaccion_ext and id_interaccion_ext.startswith("DEMO_"))
 
 
 @dashboard_bp.route("/dashboard", methods=["GET"])
@@ -50,28 +38,38 @@ def index():
 @dashboard_bp.route("/api/dashboard/resumen", methods=["GET"])
 def get_dashboard_resumen():
     """
-    Retorna métricas consolidadas distinguiendo rigurosamente registros REALES de DEMO:
-    - Publicaciones Facebook e Instagram
-    - Comentarios
-    - Likes / reacciones
-    - BUYERS identificados
+    Retorna métricas consolidadas utilizando EXCLUSIVAMENTE datos reales confirmados de Meta Graph API:
+    - Publicaciones reales de Facebook e Instagram
+    - Comentarios reales capturados vs reportados por Meta
+    - Reacciones reales actuales de Facebook y likes de Instagram (último corte por publicación)
+    - BUYERS reales identificados desde interacciones reales
     - Última sincronización y estado de agentes
     """
-    # 1. Publicaciones
-    posts = Publicacion.query.all()
-    fb_posts_reales = sum(1 for p in posts if p.id_plataforma == 1 and not _es_demo_post(p.meta_post_id))
-    fb_posts_demo = sum(1 for p in posts if p.id_plataforma == 1 and _es_demo_post(p.meta_post_id))
-    ig_posts_reales = sum(1 for p in posts if p.id_plataforma == 2 and not _es_demo_post(p.meta_post_id))
-    ig_posts_demo = sum(1 for p in posts if p.id_plataforma == 2 and _es_demo_post(p.meta_post_id))
+    # 1. Publicaciones Reales
+    pub_query = db.session.query(Publicacion)
+    pub_query = DataFilterService.apply_real_publicacion_filter(pub_query)
+    posts_reales = pub_query.all()
 
-    # 2. Comentarios
-    comentarios = InteraccionPublicacion.query.all()
-    total_comentarios = len(comentarios)
-    comentarios_reales = sum(1 for c in comentarios if not _es_demo_comentario(c.id_interaccion_externa))
-    comentarios_demo = sum(1 for c in comentarios if _es_demo_comentario(c.id_interaccion_externa))
+    fb_posts_reales = sum(1 for p in posts_reales if p.id_plataforma == 1)
+    ig_posts_reales = sum(1 for p in posts_reales if p.id_plataforma == 2)
+    total_posts_reales = fb_posts_reales + ig_posts_reales
 
-    # 3. Likes y métricas agregadas (último corte por publicación)
-    subq = (
+    # 2. Comentarios Reales Capturados
+    com_query = db.session.query(InteraccionPublicacion).join(Publicacion)
+    com_query = DataFilterService.apply_real_interaccion_filter(com_query)
+    com_query = DataFilterService.apply_real_publicacion_filter(com_query)
+    comentarios_reales = com_query.all()
+
+    fb_comentarios_capturados = sum(
+        1 for c in comentarios_reales if c.publicacion and c.publicacion.id_plataforma == 1
+    )
+    ig_comentarios_capturados = sum(
+        1 for c in comentarios_reales if c.publicacion and c.publicacion.id_plataforma == 2
+    )
+    total_comentarios_reales = len(comentarios_reales)
+
+    # 3. Métricas agregadas de Meta (utilizando el último corte válido por publicación real)
+    subq_max_corte = (
         db.session.query(
             MetricaPublicacionDiaria.id_publicacion,
             func.max(MetricaPublicacionDiaria.fecha_corte).label("max_fecha"),
@@ -80,35 +78,50 @@ def get_dashboard_resumen():
         .subquery()
     )
 
-    metricas_recientes = (
-        db.session.query(MetricaPublicacionDiaria)
+    metricas_query = (
+        db.session.query(MetricaPublicacionDiaria, Publicacion)
         .join(
-            subq,
-            (MetricaPublicacionDiaria.id_publicacion == subq.c.id_publicacion)
-            & (MetricaPublicacionDiaria.fecha_corte == subq.c.max_fecha),
+            subq_max_corte,
+            and_(
+                MetricaPublicacionDiaria.id_publicacion == subq_max_corte.c.id_publicacion,
+                MetricaPublicacionDiaria.fecha_corte == subq_max_corte.c.max_fecha,
+            ),
         )
-        .all()
+        .join(Publicacion, MetricaPublicacionDiaria.id_publicacion == Publicacion.id_publicacion)
     )
+    metricas_query = DataFilterService.apply_real_publicacion_filter(metricas_query)
+    metricas_recientes = metricas_query.all()
 
-    total_likes_fb = sum(
-        m.total_reacciones or 0
+    total_reacciones_fb = sum(
+        m[0].total_reacciones or 0
         for m in metricas_recientes
-        if m.publicacion and m.publicacion.id_plataforma == 1
+        if m[1].id_plataforma == 1
     )
     total_likes_ig = sum(
-        m.total_reacciones or 0
+        m[0].total_reacciones or 0
         for m in metricas_recientes
-        if m.publicacion and m.publicacion.id_plataforma == 2
+        if m[1].id_plataforma == 2
     )
 
-    # 4. BUYERS
-    buyers = Buyer.query.all()
-    total_buyers = len(buyers)
-    buyers_reales = sum(1 for b in buyers if not _es_demo_buyer(b.referencia_externa))
-    buyers_demo = sum(1 for b in buyers if _es_demo_buyer(b.referencia_externa))
+    total_coms_meta_fb = sum(
+        m[0].total_comentarios or 0
+        for m in metricas_recientes
+        if m[1].id_plataforma == 1
+    )
+    total_coms_meta_ig = sum(
+        m[0].total_comentarios or 0
+        for m in metricas_recientes
+        if m[1].id_plataforma == 2
+    )
 
-    buyers_fb = sum(1 for b in buyers if b.id_plataforma_origen == 1 and not _es_demo_buyer(b.referencia_externa))
-    buyers_ig = sum(1 for b in buyers if b.id_plataforma_origen == 2 and not _es_demo_buyer(b.referencia_externa))
+    # 4. BUYERS Reales Identificados
+    buyer_query = db.session.query(Buyer)
+    buyer_query = DataFilterService.apply_real_buyer_filter(buyer_query)
+    buyers_reales = buyer_query.all()
+
+    buyers_fb = sum(1 for b in buyers_reales if b.id_plataforma_origen == 1)
+    buyers_ig = sum(1 for b in buyers_reales if b.id_plataforma_origen == 2)
+    total_buyers_reales = len(buyers_reales)
 
     # 5. Última sincronización registrada
     ultima_sync = (
@@ -128,32 +141,44 @@ def get_dashboard_resumen():
         "data": {
             "publicaciones": {
                 "facebook": {
-                    "total": fb_posts_reales + fb_posts_demo,
+                    "total": fb_posts_reales,
                     "reales": fb_posts_reales,
-                    "demo": fb_posts_demo,
+                    "demo": 0,
                 },
                 "instagram": {
-                    "total": ig_posts_reales + ig_posts_demo,
+                    "total": ig_posts_reales,
                     "reales": ig_posts_reales,
-                    "demo": ig_posts_demo,
+                    "demo": 0,
                 },
-                "total_reales": fb_posts_reales + ig_posts_reales,
-                "total_demo": fb_posts_demo + ig_posts_demo,
+                "total_reales": total_posts_reales,
+                "total_demo": 0,
             },
             "comentarios": {
-                "total": total_comentarios,
-                "reales": comentarios_reales,
-                "demo": comentarios_demo,
+                "total": total_comentarios_reales,
+                "reales": total_comentarios_reales,
+                "demo": 0,
+                "facebook": fb_comentarios_capturados,
+                "instagram": ig_comentarios_capturados,
+            },
+            "comentarios_capturados": {
+                "facebook": fb_comentarios_capturados,
+                "instagram": ig_comentarios_capturados,
+                "total": total_comentarios_reales,
+            },
+            "comentarios_reportados_meta": {
+                "facebook": total_coms_meta_fb,
+                "instagram": total_coms_meta_ig,
+                "total": total_coms_meta_fb + total_coms_meta_ig,
             },
             "reacciones_likes": {
-                "facebook": total_likes_fb,
+                "facebook": total_reacciones_fb,
                 "instagram": total_likes_ig,
-                "total": total_likes_fb + total_likes_ig,
+                "total": total_reacciones_fb + total_likes_ig,
             },
             "buyers": {
-                "total": total_buyers,
-                "reales": buyers_reales,
-                "demo": buyers_demo,
+                "total": total_buyers_reales,
+                "reales": total_buyers_reales,
+                "demo": 0,
                 "reales_facebook": buyers_fb,
                 "reales_instagram": buyers_ig,
             },
@@ -175,12 +200,8 @@ def get_dashboard_resumen():
 @dashboard_bp.route("/api/dashboard/comentarios", methods=["GET"])
 def get_dashboard_comentarios():
     """
-    Retorna los comentarios registrados con su clasificación inteligente de intención.
-    Parámetros opcionales:
-    - plataforma: 'facebook', 'instagram' o None (todas)
-    - limit: int (default 100)
-    - offset: int (default 0)
-    - intencion: filtro por categoría de intención
+    Retorna exclusivamente los comentarios reales registrados con su clasificación inteligente de intención.
+    Los registros DEMO quedan completamente excluidos de la respuesta, conteos y paginación.
     """
     limit = min(request.args.get("limit", default=100, type=int), 300)
     offset = max(request.args.get("offset", default=0, type=int), 0)
@@ -192,6 +213,10 @@ def get_dashboard_comentarios():
         .join(Plataforma, Publicacion.id_plataforma == Plataforma.id_plataforma)
     )
 
+    # Filtrar solo comentarios e interacciones reales
+    query = DataFilterService.apply_real_interaccion_filter(query)
+    query = DataFilterService.apply_real_publicacion_filter(query)
+
     if plat_filtro in ("facebook", "fb"):
         query = query.filter(Publicacion.id_plataforma == 1)
     elif plat_filtro in ("instagram", "ig"):
@@ -201,7 +226,6 @@ def get_dashboard_comentarios():
 
     items = []
     for inter in interacciones:
-        # Consultar o inferir clasificación
         clasificacion = (
             InterestClassifier.get_clasificacion_comentario(inter.id_interaccion_externa)
             or InterestClassifier.clasificar(inter.texto)
@@ -211,7 +235,6 @@ def get_dashboard_comentarios():
             continue
 
         plat_cod = inter.publicacion.plataforma.codigo if (inter.publicacion and inter.publicacion.plataforma) else "DESCONOCIDA"
-        es_demo = _es_demo_comentario(inter.id_interaccion_externa)
 
         items.append({
             "id_interaccion": inter.id_interaccion,
@@ -227,10 +250,9 @@ def get_dashboard_comentarios():
             "tipo": inter.tipo,
             "id_buyer": inter.id_buyer,
             "clasificacion_intencion": clasificacion,
-            "origen": "DEMO" if es_demo else "META_REAL",
+            "origen": "META_REAL",
         })
 
-    # Paginación en memoria sobre el conjunto filtrado
     total_filtrado = len(items)
     paginados = items[offset : offset + limit]
 
@@ -246,14 +268,17 @@ def get_dashboard_comentarios():
 @dashboard_bp.route("/api/dashboard/buyers", methods=["GET"])
 def get_dashboard_buyers():
     """
-    Retorna la lista de prospectos BUYER con su plataforma de origen, estado
-    y conteo de interacciones sin exponer datos personales innecesarios.
+    Retorna exclusivamente los prospectos BUYER con procedencia REAL comprobada de Meta.
+    Los prospectos DEMO y sintéticos iniciales quedan completamente excluidos.
     """
     limit = min(request.args.get("limit", default=100, type=int), 300)
     offset = max(request.args.get("offset", default=0, type=int), 0)
     plat_filtro = request.args.get("plataforma", "").strip().lower()
 
     query = Buyer.query.join(Plataforma, Buyer.id_plataforma_origen == Plataforma.id_plataforma)
+
+    # Filtrar solo BUYERS reales
+    query = DataFilterService.apply_real_buyer_filter(query)
 
     if plat_filtro in ("facebook", "fb"):
         query = query.filter(Buyer.id_plataforma_origen == 1)
@@ -265,12 +290,12 @@ def get_dashboard_buyers():
 
     items = []
     for b in buyers:
-        # Contar interacciones asociadas
-        cant_interacciones = InteraccionPublicacion.query.filter(
-            InteraccionPublicacion.id_buyer == b.id_buyer
-        ).count()
-
-        es_demo = _es_demo_buyer(b.referencia_externa)
+        cant_interacciones = (
+            InteraccionPublicacion.query.filter(
+                InteraccionPublicacion.id_buyer == b.id_buyer,
+                ~InteraccionPublicacion.id_interaccion_externa.like("DEMO_%"),
+            ).count()
+        )
 
         items.append({
             "id_buyer": b.id_buyer,
@@ -287,7 +312,7 @@ def get_dashboard_buyers():
             "fecha_primer_contacto": b.fecha_primer_contacto.isoformat() if b.fecha_primer_contacto else None,
             "estado": b.estado,
             "total_interacciones": cant_interacciones,
-            "origen": "DEMO" if es_demo else "META_REAL",
+            "origen": "META_REAL",
         })
 
     return jsonify({

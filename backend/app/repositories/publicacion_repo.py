@@ -3,6 +3,7 @@ Repositorio para la entidad Publicacion.
 """
 from app.extensions import db
 from app.models.marketing import Publicacion
+from app.services.data_filter_service import DataFilterService
 
 
 class PublicacionRepository:
@@ -11,8 +12,12 @@ class PublicacionRepository:
         id_plataforma: int | None = None,
         id_campana: int | None = None,
         estado: str | None = None,
+        include_demo: bool = False,
     ) -> list[Publicacion]:
         query = db.session.query(Publicacion)
+        if not include_demo:
+            query = DataFilterService.apply_real_publicacion_filter(query)
+
         if id_plataforma is not None:
             query = query.filter(Publicacion.id_plataforma == id_plataforma)
         if id_campana is not None:

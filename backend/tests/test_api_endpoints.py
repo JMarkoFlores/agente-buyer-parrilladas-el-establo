@@ -88,7 +88,7 @@ def test_get_campanas(client):
 
 
 def test_get_publicaciones(client):
-    """7. Se pueden consultar publicaciones."""
+    """7. Se pueden consultar publicaciones reales excluyendo DEMO."""
     response = client.get("/api/publicaciones")
     assert response.status_code == 200
     assert response.content_type == "application/json"
@@ -97,30 +97,35 @@ def test_get_publicaciones(client):
     assert body.get("success") is True
     publicaciones = body.get("data")
     assert isinstance(publicaciones, list)
-    assert len(publicaciones) >= 3
+    assert len(publicaciones) >= 2
 
     post_ids = [p["meta_post_id"] for p in publicaciones]
-    assert "DEMO_FB_POST_01" in post_ids
-    assert "DEMO_IG_POST_01" in post_ids
+    # Comprobar que los registros DEMO están estrictamente excluidos
+    assert "DEMO_FB_POST_01" not in post_ids
+    assert "DEMO_IG_POST_01" not in post_ids
+    # Verificar que contiene publicaciones reales
+    assert any("1341560062384618" in pid for pid in post_ids)
 
 
 def test_get_buyers(client):
-    """7. Se pueden consultar BUYERS y prospectos captados."""
+    """7. Se pueden consultar BUYERS y prospectos captados reales excluyendo DEMO."""
     response = client.get("/api/buyers")
     assert response.status_code == 200
     assert response.content_type == "application/json"
 
     body = response.get_json()
     assert body.get("success") is True
-    assert body.get("total") >= 5
+    assert body.get("total") >= 2
 
     items = body.get("items")
     assert isinstance(items, list)
-    assert len(items) >= 5
+    assert len(items) >= 2
 
-    estados = {b["estado"] for b in items}
-    assert "BUYER" in estados
-    assert "CONVERTIDO_LEAD" in estados
+    # Verificar que no hay registros DEMO
+    for b in items:
+        assert b.get("origen") != "DEMO"
+        ref = b.get("referencia_externa_enmascarada") or ""
+        assert "DEMO" not in ref
 
 
 def test_get_buyer_by_id(client):
@@ -153,9 +158,9 @@ def test_get_estadisticas_resumen(client):
     assert "buyers_por_plataforma" in data
 
     embudo = data["embudo_buyer"]
-    assert embudo["total_buyers"] >= 5
-    assert embudo["buyers_convertidos_lead"] >= 3
-    assert embudo["tasa_conversion_lead_porcentaje"] > 0
+    assert embudo["total_buyers"] >= 2
+    assert "buyers_convertidos_lead" in embudo
+    assert "tasa_conversion_lead_porcentaje" in embudo
 
 
 def test_custom_404_json(client):
