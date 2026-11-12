@@ -15,6 +15,7 @@ import type {
   AutoReplyResponse,
   AutoReplyItem,
   CommentTraceabilityResponse,
+  LandingStatsResponse,
 } from '../types';
 
 const api = axios.create({
@@ -301,6 +302,15 @@ export const ApiService = {
     const res = await api.post(`/respuestas/reprocesar/${idInteraccion}`, {
       forzar_despacho: forzarDespacho,
     });
+    return res.data;
+  },
+
+  // Landing Page Metrics
+  async getLandingStats(params?: {
+    fecha_inicio?: string;
+    fecha_fin?: string;
+  }): Promise<LandingStatsResponse> {
+    const res = await api.get<LandingStatsResponse>('/landing/estadisticas', { params });
     return res.data;
   },
 };

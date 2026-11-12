@@ -5,9 +5,9 @@ import {
   type ErroresFormulario,
   type FormularioCaptacion,
 } from '../app/domain/models/formulario-captacion.model';
-import { leerOrigen, obtenerTokens } from './visitante';
+import { API_BASE, leerOrigen, obtenerTokens } from './visitante';
 
-const ENDPOINT = (import.meta.env.PUBLIC_CAPTACION_ENDPOINT ?? '').trim();
+const ENDPOINT = (import.meta.env.PUBLIC_CAPTACION_ENDPOINT ?? `${API_BASE}/api/landing/registros`).trim();
 const CAMPOS: ReadonlyArray<CampoFormulario> = [
   'nombres',
   'apellidos',
@@ -66,12 +66,40 @@ function mostrarMensaje(form: HTMLFormElement, mensaje: string): void {
   }
 }
 
+/** Carga dinámica del catálogo de platos favoritos desde la base de datos SQL Server */
+async function cargarPlatosFavoritos(form: HTMLFormElement): Promise<void> {
+  const select = form.querySelector<HTMLSelectElement>('select[name="idProductoFavorito"]');
+  if (!select) return;
+
+  try {
+    const respuesta = await fetch(`${API_BASE}/api/landing/platos-favoritos`);
+    if (respuesta.ok) {
+      const resJson = await respuesta.json();
+      if (resJson?.data && Array.isArray(resJson.data) && resJson.data.length > 0) {
+        select.innerHTML = '<option value="">Aún no lo sé</option>';
+        for (const plato of resJson.data) {
+          const opt = document.createElement('option');
+          opt.value = plato.nombre;
+          const detalle = plato.grupo_comercial ? ` (${plato.categoria} · ${plato.grupo_comercial})` : ` (${plato.categoria})`;
+          opt.textContent = `${plato.nombre}${detalle} - desde S/ ${Number(plato.precio_desde).toFixed(2)}`;
+          select.appendChild(opt);
+        }
+      }
+    }
+  } catch (error) {
+    console.debug('Usando platos estáticos como respaldo:', error);
+  }
+}
+
 function iniciar(): void {
   const form = document.querySelector<HTMLFormElement>('[data-formulario-captacion]');
 
   if (!form) {
     return;
   }
+
+  // Cargar platos favoritos desde SQL Server
+  cargarPlatosFavoritos(form);
 
   const boton = form.querySelector<HTMLButtonElement>('[type="submit"]');
   const aviso = form.querySelector<HTMLElement>('[data-aviso-endpoint]');

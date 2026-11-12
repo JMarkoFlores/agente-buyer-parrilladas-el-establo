@@ -93,7 +93,7 @@ class BaseConfig:
     DB_TRUST_SERVER_CERTIFICATE = _to_bool(os.getenv("DB_TRUST_SERVER_CERTIFICATE", "true"), default=True)
 
     # CORS
-    raw_cors = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173")
+    raw_cors = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173,http://localhost:4321,http://127.0.0.1:4321")
     CORS_ORIGINS = [origin.strip() for origin in raw_cors.split(",") if origin.strip()]
 
     # Engine pool configuration

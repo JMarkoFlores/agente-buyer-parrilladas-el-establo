@@ -13,6 +13,7 @@ import {
   X,
   Flame,
   Activity,
+  Globe,
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
@@ -38,6 +39,7 @@ const navItems: NavItem[] = [
   { number: '7', name: 'Auditoría', to: '/audit', icon: ClipboardList },
   { number: '8', name: 'Configuración', to: '/settings', icon: Settings },
   { number: '9', name: 'Respuestas automáticas', to: '/auto-replies', icon: MessageSquareReply },
+  { number: '10', name: 'Landing Page', to: '/landing', icon: Globe },
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {

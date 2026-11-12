@@ -46,5 +46,18 @@ if [ "$HAS_BUYER" != "1" ]; then
         echo "[SQL Server Init] AVISO: No se encontro archivo de inicializacion ni backup para buyer."
     fi
 else
-    echo "[SQL Server Init] La base de datos buyer ya existe. No se requieren cambios."
+    echo "[SQL Server Init] La base de datos buyer ya existe."
 fi
+
+# Aplicar migraciones aditivas e idempotentes si existen
+if [ -f "/docker-init/02_migracion_carta_flexible.sql" ]; then
+    echo "[SQL Server Init] Aplicando migracion de carta flexible 02_migracion_carta_flexible.sql..."
+    $SQLCMD -S localhost -U sa -P "$SA_PASS" -C -d buyer -i /docker-init/02_migracion_carta_flexible.sql
+fi
+
+if [ -f "/docker-init/03_cargar_catalogo_real.sql" ]; then
+    echo "[SQL Server Init] Aplicando carga de catalogo real 03_cargar_catalogo_real.sql..."
+    $SQLCMD -S localhost -U sa -P "$SA_PASS" -C -d buyer -i /docker-init/03_cargar_catalogo_real.sql
+fi
+
+echo "[SQL Server Init] Inicializacion y sincronizacion completada exitosamente."

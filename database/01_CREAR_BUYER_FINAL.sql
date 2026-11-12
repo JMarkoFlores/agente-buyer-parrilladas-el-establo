@@ -32,17 +32,60 @@ CREATE TABLE dbo.segmento_cliente (
  nombre nvarchar(50) NOT NULL UNIQUE,
  descripcion nvarchar(250) NULL
 );
+CREATE TABLE dbo.categoria_producto (
+ id_categoria varchar(20) NOT NULL PRIMARY KEY,
+ titulo nvarchar(100) NOT NULL,
+ descripcion_nota nvarchar(500) NULL,
+ orden int NOT NULL DEFAULT 0,
+ activa bit NOT NULL DEFAULT 1
+);
+CREATE TABLE dbo.tipo_corte (
+ id_tipo_corte int IDENTITY(1,1) PRIMARY KEY,
+ codigo varchar(30) NOT NULL UNIQUE,
+ nombre nvarchar(100) NOT NULL,
+ descripcion nvarchar(250) NULL,
+ activo bit NOT NULL DEFAULT 1
+);
+CREATE TABLE dbo.termino_coccion (
+ id_termino int IDENTITY(1,1) PRIMARY KEY,
+ codigo varchar(30) NOT NULL UNIQUE,
+ nombre nvarchar(50) NOT NULL,
+ descripcion nvarchar(250) NULL,
+ orden int NOT NULL DEFAULT 0,
+ activo bit NOT NULL DEFAULT 1
+);
 CREATE TABLE dbo.producto_carta (
  id_producto int IDENTITY(1,1) PRIMARY KEY,
- nombre nvarchar(120) NOT NULL UNIQUE,
- categoria varchar(15) NOT NULL CHECK (categoria IN ('COMIDA','BEBIDA','POSTRE')),
+ nombre nvarchar(120) NOT NULL,
+ categoria varchar(30) NOT NULL,
+ id_categoria varchar(20) NULL REFERENCES dbo.categoria_producto(id_categoria),
+ grupo_comercial nvarchar(100) NULL,
+ id_tipo_corte int NULL REFERENCES dbo.tipo_corte(id_tipo_corte),
+ pais_origen nvarchar(50) NULL,
  descripcion nvarchar(500) NULL,
  estilo nvarchar(50) NULL,
- peso_cantidad decimal(9,2) NULL CHECK (peso_cantidad > 0),
- peso_unidad varchar(5) NULL CHECK (peso_unidad IN ('g','ml','L')),
+ peso_cantidad decimal(9,2) NULL,
+ peso_unidad varchar(20) NULL,
  precio decimal(10,2) NOT NULL CHECK (precio >= 0),
- activo bit NOT NULL DEFAULT 1,
- CONSTRAINT CK_producto_peso CHECK ((peso_cantidad IS NULL AND peso_unidad IS NULL) OR (peso_cantidad IS NOT NULL AND peso_unidad IS NOT NULL))
+ es_apto_favorito bit NOT NULL DEFAULT 0,
+ destacado bit NOT NULL DEFAULT 0,
+ imagen varchar(255) NULL,
+ orden int NOT NULL DEFAULT 0,
+ activo bit NOT NULL DEFAULT 1
+);
+CREATE TABLE dbo.presentacion_producto (
+ id_presentacion int IDENTITY(1,1) PRIMARY KEY,
+ id_producto int NOT NULL REFERENCES dbo.producto_carta(id_producto),
+ nombre_presentacion nvarchar(150) NOT NULL,
+ precio decimal(10,2) NOT NULL CHECK (precio >= 0),
+ peso_volumen_cantidad decimal(9,2) NULL,
+ unidad_medida varchar(20) NULL,
+ variedad_vino nvarchar(100) NULL,
+ descripcion_presentacion nvarchar(500) NULL,
+ destacado bit NOT NULL DEFAULT 0,
+ imagen varchar(255) NULL,
+ orden int NOT NULL DEFAULT 0,
+ activo bit NOT NULL DEFAULT 1
 );
 
 -- 2. Campanas y publicaciones publicitarias. Publicacion != anuncio.
@@ -184,7 +227,7 @@ CREATE TABLE dbo.visita_web (
 CREATE TABLE dbo.evento_web (
  id_evento bigint IDENTITY(1,1) PRIMARY KEY,
  id_visita bigint NOT NULL REFERENCES dbo.visita_web(id_visita),
- tipo varchar(30) NOT NULL CHECK (tipo IN ('VER_MENU','CLIC_FORMULARIO','CLIC_WHATSAPP','ENVIO_FORMULARIO')),
+ tipo varchar(30) NOT NULL CHECK (tipo IN ('VER_MENU','CLIC_FORMULARIO','CLIC_WHATSAPP','ENVIO_FORMULARIO','CLIC_CARTA','VISTA_CARTA','VER_CARTA')),
  id_producto int NULL REFERENCES dbo.producto_carta(id_producto),
  fecha_evento datetime2(0) NOT NULL,
  detalle nvarchar(300) NULL

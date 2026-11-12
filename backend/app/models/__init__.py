@@ -2,7 +2,15 @@
 Módulo central de modelos SQLAlchemy para Agente Inteligente BUYER - Parrilladas El Establo.
 Exporta las 22 entidades de la base de datos SQL Server 'buyer'.
 """
-from app.models.catalogo import Plataforma, SegmentoCliente, ProductoCarta
+from app.models.catalogo import (
+    Plataforma,
+    SegmentoCliente,
+    CategoriaProducto,
+    TipoCorte,
+    TerminoCoccion,
+    ProductoCarta,
+    PresentacionProducto,
+)
 from app.models.marketing import (
     Campana,
     Publicacion,
@@ -23,10 +31,14 @@ from app.models.auditoria import EventoIntegracion, AccionAgente
 from app.models.respuesta_automatica import RespuestaAutomatica
 
 __all__ = [
-    # 1. Catálogos (3)
+    # 1. Catálogos (7)
     "Plataforma",
     "SegmentoCliente",
+    "CategoriaProducto",
+    "TipoCorte",
+    "TerminoCoccion",
     "ProductoCarta",
+    "PresentacionProducto",
     # 2. Marketing (5)
     "Campana",
     "Publicacion",

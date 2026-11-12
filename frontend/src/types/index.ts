@@ -384,3 +384,40 @@ export interface CommentTraceabilityResponse {
   };
 }
 
+export interface LandingResumen {
+  total_visitas: number;
+  visitantes_unicos: number;
+  clics_carta: number;
+  visitas_carta: number;
+  formularios_exitosos: number;
+  leads_nuevos: number;
+  tasa_conversion: number;
+}
+
+export interface VisitaDiaItem {
+  fecha: string;
+  visitas: number;
+  visitantes: number;
+}
+
+export interface FormularioRecienteItem {
+  id_formulario: number;
+  persona_nombre: string;
+  telefono: string;
+  email: string | null;
+  plato_favorito: string;
+  utm_source: string;
+  utm_campaign: string | null;
+  fecha_envio: string;
+  acepta_marketing: boolean;
+}
+
+export interface LandingStatsResponse {
+  success: boolean;
+  resumen: LandingResumen;
+  visitas_por_dia: VisitaDiaItem[];
+  formularios_recientes: FormularioRecienteItem[];
+  error?: string;
+}
+
+

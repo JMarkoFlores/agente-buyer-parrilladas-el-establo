@@ -82,8 +82,11 @@ class VisitaWeb(db.Model):
 class EventoWeb(db.Model):
     __tablename__ = "evento_web"
     __table_args__ = (
-        CheckConstraint("tipo IN ('VER_MENU','CLIC_FORMULARIO','CLIC_WHATSAPP','ENVIO_FORMULARIO')", name="CK_evento_web_tipo"),
-        {"schema": "dbo"}
+        CheckConstraint(
+            "tipo IN ('VER_MENU','CLIC_FORMULARIO','CLIC_WHATSAPP','ENVIO_FORMULARIO','CLIC_CARTA','VISTA_CARTA','VER_CARTA')",
+            name="CK_evento_web_tipo",
+        ),
+        {"schema": "dbo"},
     )
 
     id_evento = db.Column(BigInteger, primary_key=True, autoincrement=True)
