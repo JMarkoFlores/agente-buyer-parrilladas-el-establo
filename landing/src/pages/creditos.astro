@@ -1,0 +1,75 @@
+---
+import Base from '../layouts/Base.astro';
+
+// Atribución obligatoria de las fotografías de stock (Wikimedia Commons).
+const fotos = [
+  {
+    archivo: 'brasas.jpg',
+    titulo: 'Asado tradicional argentino, leña, brasas',
+    autor: 'Maxd2',
+    licencia: 'CC BY-SA 4.0',
+    url: 'https://commons.wikimedia.org/wiki/File:Asado_tradicional_argentino,_le%C3%B1a,_brasas.jpg',
+  },
+  {
+    archivo: 'cortes.jpg',
+    titulo: 'Asado de cerdo con costillas al estilo argentino',
+    autor: 'Horacio Cambeiro',
+    licencia: 'CC BY-SA 3.0',
+    url: 'https://commons.wikimedia.org/wiki/File:Asado_de_cerdo_con_costillas_al_estilo_argentino.jpg',
+  },
+  {
+    archivo: 'picanha.jpg',
+    titulo: 'La Vaca Loca 300 Bife de Chorizo Sirloin Steak',
+    autor: 'Yotam Nachum',
+    licencia: 'CC0',
+    url: 'https://commons.wikimedia.org/wiki/File:La_Vaca_Loca_300_Bife_de_Chorizo_Sirloin_Steak.jpg',
+  },
+  {
+    archivo: 'churrasco.jpg',
+    titulo: 'Beef Strip Sirloin Steak with Potato Fries',
+    autor: 'Ceeseven',
+    licencia: 'CC BY-SA 4.0',
+    url: 'https://commons.wikimedia.org/wiki/File:Beef_Strip_Sirloin_Steak_with_Potato_Fries.jpg',
+  },
+  {
+    archivo: 'parrilla-mixta.jpg',
+    titulo: 'Asado de cerdo con costillas y chorizos al estilo argentino',
+    autor: 'Horacio Cambeiro',
+    licencia: 'CC BY-SA 3.0',
+    url: 'https://commons.wikimedia.org/wiki/File:Asado_de_cerdo_con_costillas_y_chorizos_al_estilo_argentino_(presentaci%C3%B3n).jpg',
+  },
+];
+---
+
+<Base title="Créditos de imágenes · Parrilladas El Establo" description="Atribución de las fotografías usadas en la landing.">
+  <main id="contenido" class="mx-auto max-w-3xl px-5 py-16 sm:px-8">
+    <a href="/" class="text-sm text-crema/60 underline decoration-crema/25 underline-offset-4 hover:text-crema">
+      ← Volver a la carta
+    </a>
+    <h1 class="mt-6 font-display text-5xl leading-none">Créditos de imágenes</h1>
+    <p class="mt-4 text-sm text-crema/60">
+      Fotografías de stock obtenidas de Wikimedia Commons y usadas según su licencia. Las cartas de precios son
+      material propio del negocio.
+    </p>
+    <ul class="mt-10 space-y-6">
+      {
+        fotos.map((foto) => (
+          <li class="rounded-2xl border border-crema/10 p-5">
+            <p class="font-display text-2xl tracking-wide">{foto.titulo}</p>
+            <p class="mt-1 text-sm text-crema/60">
+              {foto.autor} · {foto.licencia} · archivo <code class="text-ambar">{foto.archivo}</code>
+            </p>
+            <a
+              href={foto.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="mt-2 inline-block text-sm text-crema/70 underline decoration-crema/25 underline-offset-4 hover:text-crema"
+            >
+              Ver original en Wikimedia Commons
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+  </main>
+</Base>

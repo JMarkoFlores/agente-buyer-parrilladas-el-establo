@@ -1,0 +1,288 @@
+---
+import Base from '../layouts/Base.astro';
+import Carta from '../components/Carta.astro';
+import { NEGOCIO, enlaceWhatsApp } from '../app/domain/models/negocio.model';
+import { destacados, soles } from '../app/domain/models/carta.model';
+
+const platosDestacados = destacados().slice(0, 3);
+const mensajeReserva = '¡Hola! Quisiera reservar una mesa en Parrilladas El Establo.';
+const pasos = [
+  { titulo: 'Completa el formulario', texto: 'Nombre, contacto, fecha tentativa y número de personas.' },
+  { titulo: 'Te confirmamos por WhatsApp', texto: 'Validamos disponibilidad y te enviamos los medios de pago.' },
+  { titulo: 'Anticipo y listo', texto: 'Con el anticipo confirmado, tu mesa queda asegurada.' },
+];
+---
+
+<Base>
+  <header class="sticky top-0 z-40 border-b border-crema/10 bg-carbon/80 backdrop-blur">
+    <div class="mx-auto flex h-16 max-w-6xl items-center justify-between px-5 sm:px-8">
+      <a href="#contenido" class="flex items-center gap-2.5">
+        <svg viewBox="0 0 24 24" class="h-7 w-7 fill-brasa-light" aria-hidden="true">
+          <path d="M12 2c.6 2.8-.7 4.2-2.2 5.7C8.1 9.4 6.5 11 6.5 13.6A5.5 5.5 0 0 0 12 19a5.5 5.5 0 0 0 5.5-5.4c0-1.3-.4-2.4-1-3.4-.4.9-1 1.6-1.7 2 .3-2.6-.8-5.3-2.8-6.9V2Z" />
+        </svg>
+        <span class="font-display text-xl leading-none tracking-wider">
+          Parrilladas<br /><span class="text-brasa-light">El Establo</span>
+        </span>
+      </a>
+      <nav aria-label="Navegación principal" class="hidden items-center gap-8 text-sm text-crema/75 sm:flex">
+        <a href="#carta" class="transition hover:text-crema">Carta</a>
+        <a href="#reservas" class="transition hover:text-crema">Reservas</a>
+        <a href="#local" class="transition hover:text-crema">El local</a>
+      </nav>
+      <a
+        href={NEGOCIO.formularioUrl}
+        class="rounded-full bg-brasa px-4 py-2 text-sm font-medium text-crema transition hover:bg-brasa-light"
+      >
+        Reservar
+      </a>
+    </div>
+  </header>
+
+  <main id="contenido">
+    <!-- Hero -->
+    <section id="hero" data-hero class="relative isolate overflow-hidden">
+      <div class="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(70%_60%_at_50%_-10%,rgba(249,115,22,0.32),transparent_70%)]"></div>
+      <div class="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(40%_40%_at_90%_100%,rgba(194,65,12,0.18),transparent_70%)]"></div>
+      <div
+        aria-hidden="true"
+        class="pointer-events-none absolute right-[-14rem] top-1/2 -z-10 hidden h-[40rem] w-[40rem] -translate-y-1/2 rotate-6 rounded-full bg-[repeating-linear-gradient(115deg,#f7efe2_0_3px,transparent_3px_22px)] opacity-[0.12] [mask-image:radial-gradient(circle,black,transparent_68%)] lg:block"
+      >
+      </div>
+
+      <div class="mx-auto grid max-w-6xl items-center gap-12 px-5 pb-20 pt-14 sm:px-8 sm:pb-24 sm:pt-16 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16">
+        <div>
+          <p data-hero="eyebrow" class="font-sans text-xs uppercase tracking-[0.4em] text-ambar">
+            Trujillo · Parrilla al carbón
+          </p>
+          <h1 class="mt-5 font-display text-5xl leading-[0.92] sm:text-7xl lg:text-6xl xl:text-7xl 2xl:text-8xl">
+            <span class="block overflow-hidden pb-1">
+              <span class="block" data-hero-line>El auténtico sabor</span>
+            </span>
+            <span class="block overflow-hidden pb-1">
+              <span class="block text-brasa-light" data-hero-line>a la parrilla</span>
+            </span>
+          </h1>
+          <p data-hero="copy" class="mt-6 max-w-xl text-lg text-crema/70">
+            Cortes finos de res y cerdo, parrilladas para compartir y guarniciones de la casa. Carbón, sal y nada más.
+          </p>
+          <div data-hero="cta" class="mt-9 flex flex-wrap gap-3">
+            <a
+              href="#carta"
+              class="rounded-full bg-crema px-6 py-3 text-sm font-semibold text-carbon transition hover:bg-white"
+            >
+              Ver la carta
+            </a>
+            <a
+              href={enlaceWhatsApp(mensajeReserva)}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="rounded-full border border-crema/25 px-6 py-3 text-sm font-medium text-crema transition hover:border-crema/60"
+            >
+              Reservar por WhatsApp
+            </a>
+          </div>
+          <dl class="mt-12 grid max-w-xl grid-cols-2 gap-6 border-t border-crema/10 pt-6 text-sm sm:grid-cols-3">
+            <div data-hero="stat">
+              <dt class="text-crema/45">Cortes</dt>
+              <dd class="mt-1 text-crema/85">Res y cerdo</dd>
+            </div>
+            <div data-hero="stat">
+              <dt class="text-crema/45">Grupos</dt>
+              <dd class="mt-1 text-crema/85">2 a 8 personas</dd>
+            </div>
+            <div data-hero="stat">
+              <dt class="text-crema/45">Cortesía</dt>
+              <dd class="mt-1 text-crema/85">Sangría de bienvenida</dd>
+            </div>
+          </dl>
+        </div>
+
+        <div class="relative">
+          <div data-hero-media class="relative overflow-hidden rounded-[2rem] border border-crema/10 shadow-2xl shadow-black/50">
+            <img
+              data-hero-photo
+              src="/img/brasas.jpg"
+              alt="Cortes de carne asándose sobre brasas al carbón"
+              width="1920"
+              height="1440"
+              class="h-[22rem] w-full scale-110 object-cover sm:h-[28rem] lg:h-[32rem]"
+              fetchpriority="high"
+            />
+            <div class="absolute inset-0 bg-gradient-to-t from-carbon via-carbon/25 to-transparent"></div>
+            <div class="absolute inset-x-5 bottom-5 flex items-end justify-between gap-4">
+              <p class="max-w-[14rem] text-sm text-crema/80">
+                Cada corte pasa por brasa viva antes de llegar a tu mesa.
+              </p>
+              <span class="shrink-0 rounded-full border border-ambar/40 px-3 py-1 text-[11px] uppercase tracking-[0.2em] text-ambar">
+                Al carbón
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Destacados -->
+    <section class="border-y border-crema/10 bg-carbon-soft/60">
+      <div class="mx-auto max-w-6xl px-5 py-16 sm:px-8">
+        <h2 data-reveal class="font-display text-3xl tracking-wide text-crema/90">Los favoritos de la casa</h2>
+        <ul class="mt-8 grid gap-5 sm:grid-cols-3">
+          {
+            platosDestacados.map((plato) => (
+              <li
+                data-reveal
+                class="group overflow-hidden rounded-2xl border border-crema/10 bg-carbon/60 transition hover:border-brasa-light/40"
+              >
+                {plato.imagen && (
+                  <div class="aspect-[4/3] overflow-hidden">
+                    <img
+                      src={plato.imagen}
+                      alt={plato.nombre}
+                      width="1280"
+                      height="960"
+                      loading="lazy"
+                      class="h-full w-full object-cover transition duration-500 group-hover:scale-105 motion-reduce:transition-none"
+                    />
+                  </div>
+                )}
+                <div class="p-6">
+                  <div class="flex items-baseline justify-between gap-4">
+                    <h3 class="font-display text-2xl tracking-wide">{plato.nombre}</h3>
+                    <p class="shrink-0 font-display text-2xl text-ambar">{soles(plato.precio)}</p>
+                  </div>
+                  <p class="mt-2 text-sm text-crema/60">{plato.descripcion}</p>
+                </div>
+              </li>
+            ))
+          }
+        </ul>
+      </div>
+    </section>
+
+    <Carta />
+
+    <!-- Banda con imagen -->
+    <section data-band class="relative isolate overflow-hidden border-y border-crema/10">
+      <div class="absolute inset-0 -z-10 overflow-hidden">
+        <img
+          data-band-photo
+          src="/img/cortes.jpg"
+          alt="Costillas de cerdo recién cortadas sobre una tabla de madera"
+          width="1280"
+          height="960"
+          loading="lazy"
+          class="h-[125%] w-full -translate-y-[10%] object-cover"
+        />
+        <div class="absolute inset-0 bg-carbon/75"></div>
+      </div>
+      <div class="mx-auto max-w-4xl px-5 py-24 text-center sm:px-8 sm:py-32">
+        <p data-reveal class="font-sans text-xs uppercase tracking-[0.4em] text-ambar">Hecho a la brasa</p>
+        <p data-reveal class="mx-auto mt-5 max-w-2xl font-display text-4xl leading-[1.05] sm:text-6xl">
+          Carbón, sal y cortes elegidos uno por uno.
+        </p>
+        <a
+          data-reveal
+          href="#carta"
+          class="mt-8 inline-block rounded-full border border-crema/25 px-6 py-3 text-sm font-medium transition hover:border-crema/60"
+        >
+          Ver la carta completa
+        </a>
+      </div>
+    </section>
+
+    <!-- Reservas -->
+    <section id="reservas" class="border-t border-crema/10 bg-carbon-soft/60">
+      <div class="mx-auto grid max-w-6xl gap-12 px-5 py-20 sm:px-8 sm:py-24 lg:grid-cols-2">
+        <div>
+          <p class="font-sans text-xs uppercase tracking-[0.3em] text-brasa-light" data-reveal>Reservas</p>
+          <h2 class="mt-3 font-display text-5xl leading-none" data-reveal>Asegura tu mesa</h2>
+          <p class="mt-5 max-w-md text-crema/65" data-reveal>
+            Los fines de semana se llena temprano. Deja tus datos en el formulario y coordinamos la reserva contigo.
+          </p>
+          <ol class="mt-8 space-y-5">
+            {
+              pasos.map((paso, indice) => (
+                <li class="flex gap-4">
+                  <span class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-ambar/40 font-display text-sm text-ambar">
+                    {indice + 1}
+                  </span>
+                  <div>
+                    <p class="font-medium">{paso.titulo}</p>
+                    <p class="text-sm text-crema/55">{paso.texto}</p>
+                  </div>
+                </li>
+              ))
+            }
+          </ol>
+        </div>
+
+        <div class="flex flex-col justify-center rounded-3xl border border-crema/10 bg-[linear-gradient(150deg,rgba(194,65,12,0.22),rgba(20,16,14,0.6))] p-8 sm:p-10" data-reveal>
+          <h3 class="font-display text-3xl leading-none tracking-wide">Formulario de reserva</h3>
+          <p class="mt-3 text-sm text-crema/65">
+            Toma menos de un minuto. Registramos tus datos y preferencias para atenderte mejor.
+          </p>
+          <a
+            href={NEGOCIO.formularioUrl}
+            class="mt-7 inline-flex items-center justify-center gap-2 rounded-full bg-brasa px-6 py-3.5 font-semibold text-crema transition hover:bg-brasa-light"
+          >
+            Completar formulario
+            <svg viewBox="0 0 24 24" class="h-4 w-4 fill-none stroke-current stroke-2" aria-hidden="true">
+              <path d="M7 17 17 7M9 7h8v8" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </a>
+          <p class="mt-5 text-sm text-crema/50">
+            ¿Prefieres escribirnos directo?
+            <a
+              href={enlaceWhatsApp(mensajeReserva)}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-ambar underline decoration-ambar/40 underline-offset-4 hover:decoration-ambar">WhatsApp</a>
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Local -->
+    <section id="local" class="mx-auto max-w-6xl px-5 py-20 sm:px-8">
+      <div class="grid gap-10 sm:grid-cols-2 lg:grid-cols-3">
+        <div>
+          <h2 class="font-display text-3xl tracking-wide text-crema/90">Visítanos</h2>
+          <p class="mt-4 text-crema/70">{NEGOCIO.direccion}<br />{NEGOCIO.ciudad}</p>
+        </div>
+        <div>
+          <h3 class="text-xs uppercase tracking-[0.25em] text-crema/40">Horarios</h3>
+          <ul class="mt-4 space-y-1 text-crema/70">
+            {
+              NEGOCIO.horarios.map((horario) => (
+                <li>
+                  {horario.dias}: <span class="text-crema/90">{horario.horas}</span>
+                </li>
+              ))
+            }
+          </ul>
+        </div>
+        <div>
+          <h3 class="text-xs uppercase tracking-[0.25em] text-crema/40">Contacto</h3>
+          <a
+            href={enlaceWhatsApp('¡Hola! Quisiera consultar por una reserva.')}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="mt-4 inline-block text-crema/70 underline decoration-crema/25 underline-offset-4 hover:text-crema"
+          >
+            Escríbenos por WhatsApp
+          </a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="border-t border-crema/10">
+    <div class="mx-auto flex max-w-6xl flex-col gap-2 px-5 py-8 text-xs text-crema/40 sm:flex-row sm:items-center sm:justify-between sm:px-8">
+      <p>© {new Date().getFullYear()} {NEGOCIO.nombre}. Todos los derechos reservados.</p>
+      <p class="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <span>{NEGOCIO.claim}</span>
+        <a href="/creditos" class="underline decoration-crema/20 underline-offset-4 hover:text-crema/70">Créditos de imágenes</a>
+      </p>
+    </div>
+  </footer>
+</Base>

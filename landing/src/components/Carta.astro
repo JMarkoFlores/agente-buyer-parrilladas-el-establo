@@ -1,0 +1,77 @@
+---
+import { CARTA, agrupar, soles } from '../app/domain/models/carta.model';
+
+const categorias = CARTA;
+---
+
+<section id="carta" class="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-28">
+  <header class="mb-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between" data-reveal>
+    <div>
+      <p class="font-sans text-xs uppercase tracking-[0.3em] text-brasa-light">Nuestra carta</p>
+      <h2 class="mt-3 font-display text-5xl leading-none sm:text-6xl">A la parrilla, al momento</h2>
+    </div>
+    <div class="flex gap-3 text-sm">
+      <a href="/carta/carta-platos.jpeg" target="_blank" rel="noopener" class="underline decoration-crema/30 underline-offset-4 hover:text-ambar">Carta de platos</a>
+      <a href="/carta/carta-bebidas.jpeg" target="_blank" rel="noopener" class="underline decoration-crema/30 underline-offset-4 hover:text-ambar">Bebidas y extras</a>
+    </div>
+  </header>
+
+  <nav aria-label="Categorías de la carta" class="sticky top-16 z-30 -mx-5 mb-10 bg-carbon/85 px-5 py-3 backdrop-blur sm:mx-0 sm:rounded-full sm:px-4">
+    <ul class="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] sm:flex-wrap sm:overflow-visible sm:pb-0 [&::-webkit-scrollbar]:hidden">
+      {
+        categorias.map((categoria) => (
+          <li class="shrink-0">
+            <a
+              href={`#${categoria.id}`}
+              class="inline-block whitespace-nowrap rounded-full border border-crema/15 px-4 py-1.5 text-sm text-crema/80 transition hover:border-brasa-light hover:text-crema"
+            >
+              {categoria.titulo}
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+  </nav>
+
+  <div class="space-y-16">
+    {
+      categorias.map((categoria) => (
+        <div id={categoria.id} data-reveal>
+          <div class="mb-6 flex items-center gap-4">
+            <h3 class="font-display text-3xl tracking-wide text-ambar">{categoria.titulo}</h3>
+            <span class="h-px flex-1 bg-crema/15" />
+          </div>
+          {categoria.nota && <p class="mb-6 max-w-3xl text-sm text-crema/45">{categoria.nota}</p>}
+          <div class="space-y-8">
+            {agrupar(categoria.items).map((grupo) => (
+              <div>
+                {grupo.titulo && (
+                  <h4 class="mb-4 text-[11px] uppercase tracking-[0.25em] text-crema/45">{grupo.titulo}</h4>
+                )}
+                <ul class="grid gap-x-12 gap-y-7 sm:grid-cols-2">
+                  {grupo.items.map((item) => (
+                    <li class="flex items-baseline gap-3" data-reveal>
+                      <div class="min-w-0">
+                        <p class="font-display text-2xl leading-none tracking-wide">{item.nombre}</p>
+                        {item.detalle && (
+                          <span class="text-[11px] uppercase tracking-[0.2em] text-crema/40">{item.detalle}</span>
+                        )}
+                        {item.descripcion && <p class="mt-1.5 text-sm text-crema/55">{item.descripcion}</p>}
+                      </div>
+                      <span class="mb-1 h-px flex-1 border-b border-dotted border-crema/25" />
+                      <span class="shrink-0 font-display text-xl tabular-nums text-ambar">{soles(item.precio)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))
+    }
+  </div>
+
+  <p class="mt-12 text-xs text-crema/40">
+    Precios en soles e IGV incluido. Las guarniciones de la casa incluyen papas fritas o sancochadas y ensalada mixta salvo indicación del plato.
+  </p>
+</section>

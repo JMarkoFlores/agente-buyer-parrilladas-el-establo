@@ -66,6 +66,7 @@ flowchart TD
 | **`scheduler`** | `establo_scheduler` | `python:3.11-slim` (misma imagen) | *Interno* | Worker independiente APScheduler que ejecuta ciclos cada 60s con bloqueo distribuido `sp_getapplock`. |
 | **`sqlserver`** | `establo_sqlserver` | `mcr.microsoft.com/mssql/server:2022-latest` | `1433:1433` | Microsoft SQL Server 2022 Express con la base `buyer` y datos reales inicializados de forma persistente. |
 | **`cloudbeaver`**| `establo_cloudbeaver`| `dbeaver/cloudbeaver:latest` | `8978:8978` | Administrador gráfico web de SQL Server para visualización y consultas SQL. |
+| **`landing`**     | `landing`            | `node:24-alpine` → `nginx:1.27-alpine` | `4321:80` | Landing Page estática Astro 7 + Tailwind CSS 4 con menú de parrillas y formulario de captación. |
 
 ---
 
@@ -75,6 +76,7 @@ flowchart TD
 2. Memoria asignada a Docker: al menos 4 GB de RAM.
 3. Puertos libres en Windows:
    - `3000` (Frontend Dashboard)
+   - `4321` (Landing Page Parrilladas El Establo)
    - `5000` (Backend Flask API)
    - `8978` (CloudBeaver Web)
    - `1433` (SQL Server)

@@ -24,6 +24,12 @@ backend/.env.*
 !.env.docker.example
 !.env.dokploy.example
 
+# Node y Frameworks Web (Frontend & Landing)
+node_modules/
+.astro/
+dist/
+.npm/
+
 # Byte-compiled / Caché de Python
 __pycache__/
 *.py[cod]

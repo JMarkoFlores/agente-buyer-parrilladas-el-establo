@@ -1,0 +1,191 @@
+---
+import { CARTA, etiquetaItem } from '../app/domain/models/carta.model';
+import { NEGOCIO, enlaceWhatsApp } from '../app/domain/models/negocio.model';
+
+const opciones = CARTA.filter((categoria) => categoria.id === 'combos' || categoria.id === 'res')
+  .flatMap((categoria) => categoria.items)
+  .map((item) => etiquetaItem(item));
+
+const hoy = new Date().toISOString().slice(0, 10);
+const mensajeWhatsApp = '¡Hola! Quisiera reservar una mesa en Parrilladas El Establo.';
+const claseCampo =
+  'mt-2 w-full rounded-xl border border-crema/15 bg-carbon/70 px-4 py-3 text-crema placeholder:text-crema/30 transition focus:border-brasa-light focus:outline-none focus:ring-2 focus:ring-brasa-light/30 aria-[invalid=true]:border-red-400/70';
+const claseEtiqueta = 'text-sm font-medium text-crema/80';
+---
+
+<div class="rounded-3xl border border-crema/10 bg-[linear-gradient(150deg,rgba(194,65,12,0.22),rgba(20,16,14,0.6))] p-6 sm:p-9">
+  <form data-formulario-captacion novalidate class="space-y-5">
+    <div class="grid gap-5 sm:grid-cols-2">
+      <div>
+        <label for="nombres" class={claseEtiqueta}>Nombres <span class="text-ambar">*</span></label>
+        <input
+          id="nombres"
+          name="nombres"
+          type="text"
+          autocomplete="given-name"
+          maxlength="100"
+          required
+          class={claseCampo}
+          placeholder="Ana Lucía"
+          aria-describedby="error-nombres"
+        />
+        <p id="error-nombres" data-error="nombres" hidden class="mt-1.5 text-sm text-red-300"></p>
+      </div>
+
+      <div>
+        <label for="apellidos" class={claseEtiqueta}>Apellidos <span class="text-ambar">*</span></label>
+        <input
+          id="apellidos"
+          name="apellidos"
+          type="text"
+          autocomplete="family-name"
+          maxlength="100"
+          required
+          class={claseCampo}
+          placeholder="Pérez Ruiz"
+          aria-describedby="error-apellidos"
+        />
+        <p id="error-apellidos" data-error="apellidos" hidden class="mt-1.5 text-sm text-red-300"></p>
+      </div>
+
+      <div>
+        <label for="telefono" class={claseEtiqueta}>Celular <span class="text-ambar">*</span></label>
+        <input
+          id="telefono"
+          name="telefono"
+          type="tel"
+          inputmode="tel"
+          autocomplete="tel"
+          required
+          class={claseCampo}
+          placeholder="912 345 678"
+          aria-describedby="error-telefono ayuda-telefono"
+        />
+        <p id="ayuda-telefono" class="mt-1.5 text-xs text-crema/40">Celular peruano de 9 dígitos. Te escribimos por WhatsApp.</p>
+        <p id="error-telefono" data-error="telefono" hidden class="mt-1.5 text-sm text-red-300"></p>
+      </div>
+
+      <div>
+        <label for="email" class={claseEtiqueta}>Correo electrónico</label>
+        <input
+          id="email"
+          name="email"
+          type="email"
+          autocomplete="email"
+          maxlength="150"
+          class={claseCampo}
+          placeholder="ana@correo.com"
+          aria-describedby="error-email"
+        />
+        <p id="error-email" data-error="email" hidden class="mt-1.5 text-sm text-red-300"></p>
+      </div>
+
+      <div>
+        <label for="fechaNacimiento" class={claseEtiqueta}>Fecha de nacimiento</label>
+        <input
+          id="fechaNacimiento"
+          name="fechaNacimiento"
+          type="date"
+          max={hoy}
+          autocomplete="bday"
+          class={`${claseCampo} [color-scheme:dark]`}
+          aria-describedby="error-fechaNacimiento"
+        />
+        <p id="error-fechaNacimiento" data-error="fechaNacimiento" hidden class="mt-1.5 text-sm text-red-300"></p>
+      </div>
+
+      <div>
+        <label for="idProductoFavorito" class={claseEtiqueta}>Tu plato favorito</label>
+        <select
+          id="idProductoFavorito"
+          name="idProductoFavorito"
+          class={`${claseCampo} appearance-none`}
+          aria-describedby="error-idProductoFavorito"
+        >
+          <option value="">Aún no lo sé</option>
+          {opciones.map((opcion) => <option value={opcion}>{opcion}</option>)}
+        </select>
+        <p id="error-idProductoFavorito" data-error="idProductoFavorito" hidden class="mt-1.5 text-sm text-red-300"></p>
+      </div>
+    </div>
+
+    <div class="space-y-4 border-t border-crema/10 pt-5">
+      <div>
+        <label class="flex items-start gap-3 text-sm text-crema/70">
+          <input
+            type="checkbox"
+            name="aceptaPoliticaDatos"
+            required
+            class="mt-0.5 h-4 w-4 shrink-0 rounded border-crema/30 bg-carbon accent-brasa"
+            aria-describedby="error-aceptaPoliticaDatos"
+          />
+          <span>
+            Autorizo a {NEGOCIO.nombre} a tratar mis datos personales para gestionar mi reserva, según la
+            <a href="/privacidad" class="text-ambar underline decoration-ambar/40 underline-offset-4 hover:decoration-ambar">política de privacidad</a>.
+          </span>
+        </label>
+        <p id="error-aceptaPoliticaDatos" data-error="aceptaPoliticaDatos" hidden class="mt-1.5 text-sm text-red-300"></p>
+      </div>
+
+      <label class="flex items-start gap-3 text-sm text-crema/70">
+        <input
+          type="checkbox"
+          name="aceptaMarketing"
+          class="mt-0.5 h-4 w-4 shrink-0 rounded border-crema/30 bg-carbon accent-brasa"
+        />
+        <span>Quiero recibir promociones y novedades por WhatsApp o correo.</span>
+      </label>
+    </div>
+
+    <div class="hidden" aria-hidden="true">
+      <label for="website">No completar</label>
+      <input id="website" name="website" type="text" tabindex="-1" autocomplete="off" />
+    </div>
+
+    <p data-aviso-endpoint hidden class="rounded-xl border border-ambar/30 bg-ambar/10 px-4 py-3 text-sm text-ambar">
+      El registro en línea todavía no está conectado. Escríbenos por WhatsApp y te atendemos igual.
+    </p>
+
+    <p data-estado role="status" aria-live="polite" hidden class="text-sm text-ambar"></p>
+
+    <button
+      type="submit"
+      class="w-full rounded-full bg-brasa px-6 py-3.5 font-semibold text-crema transition hover:bg-brasa-light disabled:cursor-not-allowed disabled:opacity-60"
+    >
+      Registrarme
+    </button>
+
+    <p class="text-center text-xs text-crema/40">
+      ¿Prefieres escribirnos directo?{' '}
+      <a
+        href={enlaceWhatsApp(mensajeWhatsApp)}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="text-ambar underline decoration-ambar/40 underline-offset-4 hover:decoration-ambar">WhatsApp</a>
+    </p>
+  </form>
+
+  <div data-exito role="status" hidden tabindex="-1" class="text-center outline-none">
+    <p class="font-display text-3xl leading-none tracking-wide text-crema">¡Listo, ya te registramos!</p>
+    <p class="mx-auto mt-4 max-w-md text-sm text-crema/65">
+      Gracias por tu interés. Te escribimos por WhatsApp para coordinar tu reserva.
+    </p>
+    <div class="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
+      <a
+        href={enlaceWhatsApp(mensajeWhatsApp)}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="rounded-full bg-brasa px-6 py-3 text-sm font-semibold text-crema transition hover:bg-brasa-light"
+      >
+        Abrir WhatsApp
+      </a>
+      <a href="/#carta" class="rounded-full border border-crema/25 px-6 py-3 text-sm font-medium transition hover:border-crema/60">
+        Volver a la carta
+      </a>
+    </div>
+  </div>
+</div>
+
+<script>
+  import '../scripts/formulario';
+</script>

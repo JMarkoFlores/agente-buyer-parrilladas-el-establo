@@ -1,0 +1,38 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Bebas Neue", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Inter Tight", ui-sans-serif, system-ui, sans-serif;
+
+  --color-carbon: #14100e;
+  --color-carbon-soft: #1f1815;
+  --color-brasa: #c2410c;
+  --color-brasa-light: #f97316;
+  --color-ambar: #e8a838;
+  --color-crema: #f7efe2;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 8.5rem;
+}
+
+body {
+  background-color: var(--color-carbon);
+  color: var(--color-crema);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background-color: var(--color-brasa);
+  color: var(--color-crema);
+}
+
+/* Foco visible en todo elemento interactivo. */
+a:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--color-ambar);
+  outline-offset: 3px;
+  border-radius: 2px;
+}

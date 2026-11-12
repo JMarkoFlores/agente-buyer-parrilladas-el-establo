@@ -12,10 +12,13 @@ __pycache__/
 .pytest_cache/
 *.egg-info/
 
-# Node y dependencias de frontend
+# Node y dependencias de frontend y landing
 node_modules/
 frontend/node_modules/
 frontend/dist/
+landing/node_modules/
+landing/dist/
+landing/.astro/
 .npm/
 
 # Variables de entorno privadas (nunca incluir en imágenes)

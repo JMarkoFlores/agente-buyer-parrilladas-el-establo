@@ -1,0 +1,56 @@
+---
+import '../styles/global.css';
+import WhatsAppButton from '../components/WhatsAppButton.astro';
+import { NEGOCIO } from '../app/domain/models/negocio.model';
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const {
+  title = `${NEGOCIO.nombre} · Parrilla al carbón en Trujillo`,
+  description = 'Cortes finos de res y cerdo, parrilladas personales y familiares. Consulta la carta y reserva tu mesa por WhatsApp.',
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#14100e" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:locale" content="es_PE" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter+Tight:wght@300;400;500;600&display=swap"
+    />
+  </head>
+  <body class="min-h-screen overflow-x-hidden">
+    <a
+      href="#contenido"
+      class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded focus:bg-crema focus:px-4 focus:py-2 focus:text-carbon"
+    >
+      Saltar al contenido
+    </a>
+    <slot />
+    <WhatsAppButton mensaje={`¡Hola ${NEGOCIO.nombre}! Quisiera hacer una reserva.`} />
+    <script>
+      import { iniciarSeguimiento } from '../scripts/visitante';
+      iniciarSeguimiento();
+    </script>
+    <script>
+      import '../scripts/animations';
+    </script>
+  </body>
+</html>

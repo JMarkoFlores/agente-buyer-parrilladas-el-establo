@@ -1,11 +1,12 @@
 # ==============================================================================
 # DOCKER COMPOSE — AGENTE INTELIGENTE MULTICANAL BUYER (PARRILLADAS EL ESTABLO)
-# Arquitectura de 5 Servicios:
+# Arquitectura de 6 Servicios:
 #   1. sqlserver: Microsoft SQL Server Express 2022 con BD buyer poblada
 #   2. backend: API Flask WSGI ejecutada con Gunicorn
 #   3. scheduler: Proceso independiente de sincronización Meta con APScheduler
 #   4. frontend: React + TypeScript servido con Nginx y proxy inverso a Flask
 #   5. cloudbeaver: Interfaz gráfica web para administración de SQL Server
+#   6. landing: Landing Page estática Astro 7 + Tailwind CSS 4 con Nginx
 # ==============================================================================
 
 name: agente-buyer
@@ -222,6 +223,26 @@ services:
       timeout: 5s
       retries: 5
       start_period: 25s
+    networks:
+      - establo_network
+
+  # ----------------------------------------------------------------------------
+  # 6. LANDING PAGE WEB: ASTRO + TAILWIND 4 + NGINX (PARRILLADAS EL ESTABLO)
+  # ----------------------------------------------------------------------------
+  landing:
+    build:
+      context: ./landing
+      dockerfile: Dockerfile
+    container_name: landing
+    restart: unless-stopped
+    ports:
+      - "${LANDING_PORT:-4321}:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://127.0.0.1:80/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     networks:
       - establo_network
 

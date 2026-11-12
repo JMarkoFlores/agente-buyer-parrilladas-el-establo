@@ -3,12 +3,13 @@
 # Agente Inteligente Multicanal para la Captación y Conversión de BUYERS
 # Parrilladas El Establo
 # ==============================================================================
-# Arquitectura de 5 Servicios Desacoplados:
+# Arquitectura de 6 Servicios Desacoplados:
 #   1. sqlserver: Microsoft SQL Server Express 2022 (Aislado, Red Interna)
 #   2. backend: Flask WSGI (Gunicorn) (Aislado, accesible solo via Nginx /api/)
 #   3. scheduler: APScheduler Standalone Worker (Aislado, Bloqueo SQL Server)
 #   4. frontend: React + Vite + Nginx Proxy Inverso (dokploy-network + internal)
 #   5. cloudbeaver: Administración Web SQL Server (Autenticado, dokploy-network)
+#   6. landing: Landing Page estática Astro + Tailwind + Nginx (dokploy-network + internal)
 # ==============================================================================
 
 services:
@@ -221,6 +222,26 @@ services:
       timeout: 5s
       retries: 5
       start_period: 25s
+    networks:
+      - internal
+      - dokploy-network
+
+  # ----------------------------------------------------------------------------
+  # 6. LANDING PAGE WEB: ASTRO + TAILWIND + NGINX
+  # ----------------------------------------------------------------------------
+  landing:
+    build:
+      context: ./landing
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    expose:
+      - "80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://127.0.0.1:80/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     networks:
       - internal
       - dokploy-network
