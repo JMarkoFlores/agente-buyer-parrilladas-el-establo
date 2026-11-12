@@ -2,10 +2,20 @@
  * Utilidades de formateo para fechas, números y cadenas.
  */
 
+// La BD guarda UTC sin offset ("2026-11-12T05:00:00"); sin "Z" el navegador lo
+// interpretaría como hora local. Se muestra siempre en hora de Lima (UTC-5).
+const TIME_ZONE = 'America/Lima';
+
+function parseDbDate(dateStr: string): Date {
+  const hasOffset = /[zZ]$|[+-]\d{2}:?\d{2}$/.test(dateStr);
+  const needsUtcMark = dateStr.includes('T') && !hasOffset;
+  return new Date(needsUtcMark ? `${dateStr}Z` : dateStr);
+}
+
 export function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return '—';
   try {
-    const d = new Date(dateStr);
+    const d = parseDbDate(dateStr);
     if (isNaN(d.getTime())) return dateStr;
     return new Intl.DateTimeFormat('es-PE', {
       year: 'numeric',
@@ -13,6 +23,7 @@ export function formatDate(dateStr: string | null | undefined): string {
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
+      timeZone: TIME_ZONE,
     }).format(d);
   } catch {
     return dateStr;
@@ -22,11 +33,12 @@ export function formatDate(dateStr: string | null | undefined): string {
 export function formatShortDate(dateStr: string | null | undefined): string {
   if (!dateStr) return '—';
   try {
-    const d = new Date(dateStr);
+    const d = parseDbDate(dateStr);
     if (isNaN(d.getTime())) return dateStr;
     return new Intl.DateTimeFormat('es-PE', {
       month: 'short',
       day: 'numeric',
+      timeZone: TIME_ZONE,
     }).format(d);
   } catch {
     return dateStr;
