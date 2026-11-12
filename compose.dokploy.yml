@@ -21,6 +21,14 @@ services:
       context: ./docker/sqlserver
       dockerfile: Dockerfile
     restart: unless-stopped
+    # SQLPAL (sqlservr) aborta al iniciar bajo el perfil AppArmor por defecto del host
+    security_opt:
+      - apparmor:unconfined
+    shm_size: 1gb
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
     environment:
       ACCEPT_EULA: ${ACCEPT_EULA:-Y}
       MSSQL_PID: ${MSSQL_PID:-Express}
@@ -34,6 +42,19 @@ services:
       timeout: 5s
       retries: 15
       start_period: 25s
+    networks:
+      - internal
+
+  # TEMPORAL: sondas de diagnostico SQLPAL (eliminar tras diagnosticar)
+  sqlprobe:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Express
+      MSSQL_SA_PASSWORD: "Probe2026!Abcd1234"
+    command: ["/opt/mssql/bin/sqlservr"]
+    volumes:
+      - sqlserver_data:/var/opt/mssql
     networks:
       - internal
 
