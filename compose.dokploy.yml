@@ -246,7 +246,7 @@ services:
       dockerfile: Dockerfile
       args:
         # Inlineado en build por Astro: base de la API (same-origin via proxy Nginx)
-        PUBLIC_API_URL: ${PUBLIC_API_URL:-https://elestablo.giansmd.dev}
+        PUBLIC_API_URL: ${PUBLIC_API_URL:-https://elestablo2.giansmd.dev}
     restart: unless-stopped
     expose:
       - "80"
