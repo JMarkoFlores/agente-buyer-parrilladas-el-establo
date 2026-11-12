@@ -35,26 +35,13 @@ services:
       MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD}
       DB_PASSWORD: ${DB_PASSWORD}
     volumes:
-      - sqlserver_data:/var/opt/mssql
+      - sqlserver_data_v2:/var/opt/mssql
     healthcheck:
       test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q \"SELECT 1 FROM buyer.dbo.plataforma;\" || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 15
       start_period: 25s
-    networks:
-      - internal
-
-  # TEMPORAL: sondas de diagnostico SQLPAL (eliminar tras diagnosticar)
-  sqlprobe:
-    image: mcr.microsoft.com/mssql/server:2022-latest
-    environment:
-      ACCEPT_EULA: "Y"
-      MSSQL_PID: Express
-      MSSQL_SA_PASSWORD: "Probe2026!Abcd1234"
-    command: ["/opt/mssql/bin/sqlservr"]
-    volumes:
-      - sqlserver_data:/var/opt/mssql
     networks:
       - internal
 
@@ -124,7 +111,10 @@ services:
       retries: 6
       start_period: 15s
     networks:
-      - internal
+      internal:
+        aliases:
+          # Alias unico: `backend` colisiona con otros stacks en dokploy-network
+          - establo-backend
 
   # ----------------------------------------------------------------------------
   # 3. PLANIFICADOR DE AGENTES: WORKER STANDALONE APSCHEDULER
@@ -256,7 +246,7 @@ services:
       dockerfile: Dockerfile
       args:
         # Inlineado en build por Astro: base de la API (same-origin via proxy Nginx)
-        PUBLIC_API_URL: ${PUBLIC_API_URL:-https://elestablo.giansmd.dev}
+        PUBLIC_API_URL: ${PUBLIC_API_URL:-https://elestablo2.giansmd.dev}
     restart: unless-stopped
     expose:
       - "80"
@@ -283,5 +273,5 @@ networks:
 
 volumes:
   # Volúmenes persistentes con nombres con ámbito de proyecto (evita colisiones)
-  sqlserver_data:
+  sqlserver_data_v2:
   cloudbeaver_data:

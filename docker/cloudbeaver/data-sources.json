@@ -2,8 +2,8 @@
   "folders": {},
   "connections": {
     "sqlserver-buyer-db": {
-      "provider": "mssql",
-      "driver": "mssql_jdbc",
+      "provider": "sqlserver",
+      "driver": "microsoft",
       "name": "SQL Server (buyer)",
       "description": "Conexion preconfigurada para Parrilladas El Establo - buyer",
       "save-password": true,
@@ -14,7 +14,8 @@
         "database": "buyer",
         "url": "jdbc:sqlserver://sqlserver:1433;databaseName=buyer;encrypt=true;trustServerCertificate=true;",
         "configurationType": "MANUAL",
-        "auth-model": "native"
+        "type": "dev",
+        "auth-model": "sqlserver_database"
       },
       "auth-properties": {
         "user": "sa"
