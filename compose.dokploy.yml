@@ -111,7 +111,10 @@ services:
       retries: 6
       start_period: 15s
     networks:
-      - internal
+      internal:
+        aliases:
+          # Alias unico: `backend` colisiona con otros stacks en dokploy-network
+          - establo-backend
 
   # ----------------------------------------------------------------------------
   # 3. PLANIFICADOR DE AGENTES: WORKER STANDALONE APSCHEDULER
