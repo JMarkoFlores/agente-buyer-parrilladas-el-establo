@@ -293,6 +293,16 @@ export const ApiService = {
     const res = await api.post('/respuestas/activar-auto', {});
     return res.data;
   },
+
+  async reprocessComment(
+    idInteraccion: number,
+    forzarDespacho?: boolean
+  ): Promise<{ success: boolean; mensaje?: string; error?: string; data?: AutoReplyItem }> {
+    const res = await api.post(`/respuestas/reprocesar/${idInteraccion}`, {
+      forzar_despacho: forzarDespacho,
+    });
+    return res.data;
+  },
 };
 
 export default api;

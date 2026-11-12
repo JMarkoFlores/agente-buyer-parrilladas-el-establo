@@ -186,6 +186,14 @@ class InterestClassifier:
                 re.compile(r"\b(buenazo|buenisimo|excelente|delicioso|espectacular|muy\s+rico|rico\s+asado|los\s+mejores|gran\s+lugar|recomendado|recomendadazo|felicitaciones|lo\s+maximo|me\s+encanta|pura\s+calidad)\b"),
                 re.compile(r"\b(que\s+rico|que\s+delicia|que\s+bueno|se\s+ve\s+buenazo|se\s+ve\s+espectacular|lo\s+mejor\s+de)\b"),
                 re.compile(r"\b(excelente\s+foto|buena\s+foto|buen\s+plato|buenisima)\b"),
+                re.compile(r"\b(sabor|sabores|sabroso|sabrosos|sabrosa|sabrosas|sabrosisimo|sabrosisima)\b"),
+                re.compile(r"\b(sabor\s+unico|gran\s+sabor|buen\s+sabor|rico\s+sabor|excelente\s+sabor|autentico\s+sabor)\b"),
+                re.compile(r"\b(unico|unica|unicos|unicas)\b"),
+                re.compile(r"\b(preparo\s+rapido|preparacion\s+rapida|atencion\s+rapida|servicio\s+rapido|rapido|rapida|rapidisimo|al\s+toque)\b"),
+                re.compile(r"\b(calidad|de\s+primera|primera\s+calidad|alta\s+calidad)\b"),
+                re.compile(r"\b(recomiendo|lo\s+recomiendo|la\s+recomiendo|los\s+recomiendo|super\s+recomendado|100%\s+recomendado)\b"),
+                re.compile(r"\b(buena\s+comida|deliciosa\s+comida|excelente\s+comida|rica\s+comida|ricas\s+carnes|buenas\s+carnes)\b"),
+                re.compile(r"\b(maravilloso|maravillosa|fabuloso|fabulosa|genial|top|10/10|imperdible|increible)\b"),
             ],
         ),
         (
@@ -197,6 +205,8 @@ class InterestClassifier:
                 re.compile(r"\b(picana|bife|parrillada|parrilla|asado|cortes|chorizo|anticucho)\b"),
                 re.compile(r"\b(carta|menu|plato|platos|guarniciones)\b"),
                 re.compile(r"\b(atienden\s+grupos|familiar|grupos\s+familiares)\b"),
+                re.compile(r"\b(pregunta|preguntas|consulta|consultas|duda|dudas|averiguar|consultar)\b"),
+                re.compile(r"\b(carne|carnes|pollo|costillas|lechoncito|hamburguesas|entradas)\b"),
             ],
         ),
         (
@@ -319,11 +329,15 @@ class InterestClassifier:
         """
         clasificacion = cls.clasificar(texto)
 
-        # Si ya está registrado y no se fuerza, no crear duplicado
+        # Si ya está registrado y no se fuerza, no crear duplicado salvo que antes haya sido OTRO
+        # y con el clasificador mejorado ahora se detecte una intención comercial o de elogio válida
         if not forzar:
             clasif_previa = cls.get_clasificacion_comentario(id_interaccion_externa)
             if clasif_previa is not None:
-                return clasif_previa, False
+                if clasif_previa == CATEGORIA_OTRO and clasificacion != CATEGORIA_OTRO:
+                    pass  # Permitir reclasificar un comentario previamente clasificado como OTRO
+                else:
+                    return clasif_previa, False
 
         # Formatear detalle asegurando límite de 500 caracteres
         resumen_texto = (texto or "").strip()[:200]

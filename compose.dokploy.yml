@@ -1,0 +1,242 @@
+# ==============================================================================
+# DOCKER COMPOSE — DOKPLOY DEPLOYMENT SPECIFICATION
+# Agente Inteligente Multicanal para la Captación y Conversión de BUYERS
+# Parrilladas El Establo
+# ==============================================================================
+# Arquitectura de 5 Servicios Desacoplados:
+#   1. sqlserver: Microsoft SQL Server Express 2022 (Aislado, Red Interna)
+#   2. backend: Flask WSGI (Gunicorn) (Aislado, accesible solo via Nginx /api/)
+#   3. scheduler: APScheduler Standalone Worker (Aislado, Bloqueo SQL Server)
+#   4. frontend: React + Vite + Nginx Proxy Inverso (dokploy-network + internal)
+#   5. cloudbeaver: Administración Web SQL Server (Autenticado, dokploy-network)
+# ==============================================================================
+
+services:
+  # ----------------------------------------------------------------------------
+  # 1. MOTOR DE BASE DE DATOS: MICROSOFT SQL SERVER 2022 EXPRESS
+  # ----------------------------------------------------------------------------
+  sqlserver:
+    build:
+      context: ./docker/sqlserver
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      ACCEPT_EULA: ${ACCEPT_EULA:-Y}
+      MSSQL_PID: ${MSSQL_PID:-Express}
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD}
+      DB_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q \"SELECT 1 FROM buyer.dbo.plataforma;\" || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 25s
+    networks:
+      - internal
+
+  # ----------------------------------------------------------------------------
+  # 2. SERVIDOR DE APLICACIÓN: BACKEND FLASK CON WSGI GUNICORN
+  # ----------------------------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    expose:
+      - "5000"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    environment:
+      # Conexión SQL Server (Servicio interno)
+      DB_SERVER: sqlserver
+      DB_PORT: 1433
+      DB_NAME: ${DB_NAME:-buyer}
+      DB_USER: ${DB_USER:-buyer_app}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_TRUSTED_CONNECTION: "false"
+      DB_DRIVER: ODBC Driver 18 for SQL Server
+      DB_TRUST_SERVER_CERTIFICATE: "true"
+
+      # Entorno Flask
+      FLASK_ENV: ${FLASK_ENV:-production}
+      FLASK_PORT: 5000
+      SECRET_KEY: ${SECRET_KEY}
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://elestablo.giansmd.dev,http://localhost:3000}
+      ADMIN_API_KEY: ${ADMIN_API_KEY}
+
+      # Meta Graph API
+      META_GRAPH_VERSION: ${META_GRAPH_VERSION:-v27.0}
+      META_APP_ID: ${META_APP_ID}
+      META_APP_SECRET: ${META_APP_SECRET}
+      META_PAGE_ID: ${META_PAGE_ID}
+      META_PAGE_ACCESS_TOKEN: ${META_PAGE_ACCESS_TOKEN}
+      META_VERIFY_TOKEN: ${META_VERIFY_TOKEN}
+      META_HTTP_TIMEOUT: ${META_HTTP_TIMEOUT:-20}
+      META_IG_ACCOUNT_ID: ${META_IG_ACCOUNT_ID}
+      META_IG_ACCESS_TOKEN: ${META_IG_ACCESS_TOKEN}
+      META_IG_LOGIN_TYPE: ${META_IG_LOGIN_TYPE:-FACEBOOK_LOGIN}
+
+      # Aislamiento de Scheduler en Backend Web
+      META_SYNC_ENABLED: "false"
+      META_SYNC_SCHEDULER_EMBEDDED: "false"
+      SCHEDULER_STANDALONE: "true"
+
+      # Parámetros del Agente de Respuestas Automáticas
+      AUTO_REPLY_ENABLED: ${AUTO_REPLY_ENABLED:-true}
+      AUTO_REPLY_DRY_RUN: ${AUTO_REPLY_DRY_RUN:-true}
+      AUTO_REPLY_REQUIRE_REVIEW: ${AUTO_REPLY_REQUIRE_REVIEW:-false}
+      AUTO_REPLY_FACEBOOK_ENABLED: ${AUTO_REPLY_FACEBOOK_ENABLED:-true}
+      AUTO_REPLY_INSTAGRAM_ENABLED: ${AUTO_REPLY_INSTAGRAM_ENABLED:-true}
+      AUTO_REPLY_FORM_URL: ${AUTO_REPLY_FORM_URL:-https://elestablo.giansmd.dev/registro/}
+      AUTO_REPLY_INCLUDE_FORM_URL: ${AUTO_REPLY_INCLUDE_FORM_URL:-true}
+      AUTO_REPLY_LANDING_URL: ${AUTO_REPLY_LANDING_URL:-https://elestablo.giansmd.dev/}
+      AUTO_REPLY_MAX_PER_CYCLE: ${AUTO_REPLY_MAX_PER_CYCLE:-5}
+      AUTO_REPLY_COOLDOWN_HOURS: ${AUTO_REPLY_COOLDOWN_HOURS:-24}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
+    networks:
+      - internal
+
+  # ----------------------------------------------------------------------------
+  # 3. PLANIFICADOR DE AGENTES: WORKER STANDALONE APSCHEDULER
+  # ----------------------------------------------------------------------------
+  scheduler:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: ["python", "run_scheduler.py"]
+    restart: unless-stopped
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    environment:
+      # Conexión SQL Server
+      DB_SERVER: sqlserver
+      DB_PORT: 1433
+      DB_NAME: ${DB_NAME:-buyer}
+      DB_USER: ${DB_USER:-buyer_app}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_TRUSTED_CONNECTION: "false"
+      DB_DRIVER: ODBC Driver 18 for SQL Server
+      DB_TRUST_SERVER_CERTIFICATE: "true"
+
+      # Entorno
+      FLASK_ENV: ${FLASK_ENV:-production}
+      SECRET_KEY: ${SECRET_KEY}
+      ADMIN_API_KEY: ${ADMIN_API_KEY}
+
+      # Meta Graph API
+      META_GRAPH_VERSION: ${META_GRAPH_VERSION:-v27.0}
+      META_APP_ID: ${META_APP_ID}
+      META_APP_SECRET: ${META_APP_SECRET}
+      META_PAGE_ID: ${META_PAGE_ID}
+      META_PAGE_ACCESS_TOKEN: ${META_PAGE_ACCESS_TOKEN}
+      META_VERIFY_TOKEN: ${META_VERIFY_TOKEN}
+      META_HTTP_TIMEOUT: ${META_HTTP_TIMEOUT:-20}
+      META_IG_ACCOUNT_ID: ${META_IG_ACCOUNT_ID}
+      META_IG_ACCESS_TOKEN: ${META_IG_ACCESS_TOKEN}
+      META_IG_LOGIN_TYPE: ${META_IG_LOGIN_TYPE:-FACEBOOK_LOGIN}
+
+      # Sincronización Automática Standalone
+      # PRECAUCIÓN: META_SYNC_ENABLED y AUTO_REPLY_DRY_RUN deben permanecer seguros
+      # hasta desactivar el scheduler local y validar el entorno remoto.
+      META_SYNC_ENABLED: ${META_SYNC_ENABLED:-false}
+      META_SYNC_INTERVAL_MINUTES: ${META_SYNC_INTERVAL_MINUTES:-1}
+      META_SYNC_SCHEDULER_EMBEDDED: "false"
+      SCHEDULER_STANDALONE: "false"
+      SCHEDULER_LOCK_TYPE: ${SCHEDULER_LOCK_TYPE:-sql_server}
+
+      # Agente de Respuestas Automáticas
+      AUTO_REPLY_ENABLED: ${AUTO_REPLY_ENABLED:-true}
+      AUTO_REPLY_DRY_RUN: ${AUTO_REPLY_DRY_RUN:-true}
+      AUTO_REPLY_REQUIRE_REVIEW: ${AUTO_REPLY_REQUIRE_REVIEW:-false}
+      AUTO_REPLY_FACEBOOK_ENABLED: ${AUTO_REPLY_FACEBOOK_ENABLED:-true}
+      AUTO_REPLY_INSTAGRAM_ENABLED: ${AUTO_REPLY_INSTAGRAM_ENABLED:-true}
+      AUTO_REPLY_FORM_URL: ${AUTO_REPLY_FORM_URL:-https://elestablo.giansmd.dev/registro/}
+      AUTO_REPLY_INCLUDE_FORM_URL: ${AUTO_REPLY_INCLUDE_FORM_URL:-true}
+      AUTO_REPLY_LANDING_URL: ${AUTO_REPLY_LANDING_URL:-https://elestablo.giansmd.dev/}
+      AUTO_REPLY_MAX_PER_CYCLE: ${AUTO_REPLY_MAX_PER_CYCLE:-5}
+      AUTO_REPLY_COOLDOWN_HOURS: ${AUTO_REPLY_COOLDOWN_HOURS:-24}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os, sys; sys.exit(0 if any('run_scheduler.py' in open(f'/proc/{p}/cmdline', 'rb').read().decode(errors='ignore') for p in os.listdir('/proc') if p.isdigit()) else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    networks:
+      - internal
+
+  # ----------------------------------------------------------------------------
+  # 4. FRONTEND WEB: REACT + TYPESCRIPT + NGINX PROXY
+  # ----------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    expose:
+      - "80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://127.0.0.1:80/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - internal
+      - dokploy-network
+
+  # ----------------------------------------------------------------------------
+  # 5. GESTIÓN WEB DE BASE DE DATOS: CLOUDBEAVER COMMUNITY
+  # ----------------------------------------------------------------------------
+  cloudbeaver:
+    build:
+      context: ./docker/cloudbeaver
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    expose:
+      - "8978"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    environment:
+      CLOUDBEAVER_APP_ANONYMOUS_ACCESS_ENABLED: "false"
+    volumes:
+      - cloudbeaver_data:/opt/cloudbeaver/workspace
+    healthcheck:
+      test: ["CMD", "bash", "-c", "</dev/tcp/127.0.0.1/8978"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 25s
+    networks:
+      - internal
+      - dokploy-network
+
+# ==============================================================================
+# REDES Y VOLÚMENES PERSISTENTES COMPATIBLES CON DOKPLOY
+# ==============================================================================
+networks:
+  # Red interna privada para interconexión de servicios del stack
+  internal:
+    driver: bridge
+  # Red externa de Dokploy administrada por Traefik para enrutamiento SSL/HTTPS
+  dokploy-network:
+    external: true
+
+volumes:
+  # Volúmenes persistentes con nombres con ámbito de proyecto (evita colisiones)
+  sqlserver_data:
+  cloudbeaver_data:

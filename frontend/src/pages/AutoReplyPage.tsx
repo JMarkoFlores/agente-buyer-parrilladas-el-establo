@@ -242,6 +242,28 @@ export const AutoReplyPage: React.FC = () => {
     },
   });
 
+  // Mutación: Reprocesar Comentario (Reclasificar y generar propuesta con URL)
+  const reprocessMutation = useMutation({
+    mutationFn: ({ id, forzarDespacho }: { id: number; forzarDespacho?: boolean }) =>
+      ApiService.reprocessComment(id, forzarDespacho),
+    onSuccess: (res) => {
+      setFeedbackMessage({
+        type: 'success',
+        text: res.mensaje || 'Comentario reprocesado exitosamente.',
+      });
+      queryClient.invalidateQueries({ queryKey: ['autoReplyStatus'] });
+      queryClient.invalidateQueries({ queryKey: ['autoReplyHistory'] });
+      queryClient.invalidateQueries({ queryKey: ['commentTraceability'] });
+    },
+    onError: (err: any) => {
+      if (err?.response?.status === 401) openModal();
+      setFeedbackMessage({
+        type: 'error',
+        text: err?.response?.data?.error || 'Error al reprocesar el comentario.',
+      });
+    },
+  });
+
   const handleOpenEdit = (reply: AutoReplyItem) => {
     setSelectedReply(reply);
     setEditedText(reply.texto_respuesta);
@@ -399,6 +421,7 @@ export const AutoReplyPage: React.FC = () => {
 
   const config = statusData?.config;
   const metricas = statusData?.metricas;
+  const formUrl = config?.form_url || 'https://elestablo.giansmd.dev/registro/';
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
@@ -697,6 +720,7 @@ export const AutoReplyPage: React.FC = () => {
                   <tbody className="divide-y divide-slate-100 dark:divide-brand-charcoal-border">
                     {filteredItems.map((r) => {
                       const isFb = r.plataforma_codigo === 'FACEBOOK';
+                      const tieneUrl = r.texto_respuesta?.includes(formUrl);
                       return (
                         <tr
                           key={r.id_respuesta}
@@ -724,11 +748,11 @@ export const AutoReplyPage: React.FC = () => {
                               '—'
                             )}
                           </td>
-                          <td className="py-3 px-4 max-w-xs truncate">
+                          <td className="py-3 px-4 max-w-xs">
                             <p className="font-semibold text-slate-800 dark:text-slate-200">
                               {r.comentario_original?.nombre_usuario || 'Usuario'}
                             </p>
-                            <p className="text-slate-600 dark:text-slate-400 text-[11px] truncate">
+                            <p className="text-slate-600 dark:text-slate-400 text-[11px] line-clamp-2">
                               "{r.comentario_original?.texto || 'Sin texto'}"
                             </p>
                           </td>
@@ -737,15 +761,65 @@ export const AutoReplyPage: React.FC = () => {
                               {r.intencion_detectada}
                             </Badge>
                           </td>
-                          <td className="py-3 px-4 max-w-sm sm:max-w-md truncate text-slate-700 dark:text-slate-300 font-sans">
-                            {r.texto_respuesta}
+                          <td className="py-3 px-4 max-w-sm sm:max-w-md font-sans">
+                            <p className="text-slate-700 dark:text-slate-300 text-xs line-clamp-2">
+                              {r.texto_respuesta}
+                            </p>
+                            <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                              {tieneUrl ? (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
+                                  <ExternalLink className="w-2.5 h-2.5" />
+                                  URL Oficial Incluida
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-700" title="La respuesta generada no contiene la URL configurada">
+                                  <AlertTriangle className="w-2.5 h-2.5 text-amber-600" />
+                                  ⚠️ Sin URL oficial del formulario
+                                </span>
+                              )}
+                              {r.id_respuesta_meta && (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700 truncate max-w-[170px]" title={r.id_respuesta_meta}>
+                                  Meta ID: {r.id_respuesta_meta}
+                                </span>
+                              )}
+                            </div>
+                            {r.error_detalle && (
+                              <p className="text-[10px] font-mono text-rose-600 dark:text-rose-400 mt-1 truncate" title={r.error_detalle}>
+                                Motivo/Error: {r.error_detalle}
+                              </p>
+                            )}
                           </td>
                           <td className="py-3 px-4 whitespace-nowrap">{renderStatusBadge(r.estado)}</td>
                           <td className="py-3 px-4 whitespace-nowrap text-slate-500 font-mono text-[11px]">
-                            {formatDate(r.fecha_generacion)}
+                            {r.fecha_envio ? (
+                              <div>
+                                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-sans font-semibold block">Enviado:</span>
+                                <span>{formatDate(r.fecha_envio)}</span>
+                              </div>
+                            ) : (
+                              <div>
+                                <span className="text-[10px] text-slate-400 font-sans block">Generado:</span>
+                                <span>{formatDate(r.fecha_generacion)}</span>
+                              </div>
+                            )}
                           </td>
                           <td className="py-3 px-4 text-right whitespace-nowrap">
                             <div className="flex items-center justify-end gap-1.5">
+                              {r.estado !== 'ENVIADA' && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => reprocessMutation.mutate({ id: r.id_interaccion, forzarDespacho: false })}
+                                  isLoading={
+                                    reprocessMutation.isPending &&
+                                    reprocessMutation.variables?.id === r.id_interaccion
+                                  }
+                                  title="Reprocesar comentario con clasificador mejorado"
+                                  className="px-2 py-1 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40"
+                                >
+                                  <RotateCw className="w-3.5 h-3.5" />
+                                </Button>
+                              )}
                               <Button
                                 size="sm"
                                 variant="ghost"
@@ -962,18 +1036,45 @@ export const AutoReplyPage: React.FC = () => {
                           </td>
                           <td className="py-3 px-4 max-w-xs">
                             {item.tiene_respuesta && item.texto_respuesta ? (
-                              <div>
+                              <div className="space-y-1">
                                 <p className="text-slate-700 dark:text-slate-200 text-[11px] truncate" title={item.texto_respuesta}>
                                   "{item.texto_respuesta}"
                                 </p>
-                                {item.id_respuesta_meta && (
-                                  <span className="text-[10px] font-mono text-emerald-700 dark:text-emerald-400 block truncate" title={item.id_respuesta_meta}>
-                                    Meta ID: {item.id_respuesta_meta}
-                                  </span>
-                                )}
+                                <div className="flex flex-wrap items-center gap-1">
+                                  {item.texto_respuesta.includes(formUrl) ? (
+                                    <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-1 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
+                                      <ExternalLink className="w-2.5 h-2.5" /> URL incluida
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 px-1 py-0.5 rounded border border-amber-300 dark:border-amber-700">
+                                      <AlertTriangle className="w-2.5 h-2.5 text-amber-600" /> Sin URL
+                                    </span>
+                                  )}
+                                  {item.id_respuesta_meta && (
+                                    <span className="text-[10px] font-mono text-emerald-700 dark:text-emerald-400 block truncate" title={item.id_respuesta_meta}>
+                                      Meta ID: {item.id_respuesta_meta}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             ) : (
-                              <span className="text-slate-400 text-[11px] italic">Sin respuesta</span>
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-slate-400 text-[11px] italic">Sin respuesta</span>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => reprocessMutation.mutate({ id: item.id_interaccion, forzarDespacho: false })}
+                                  isLoading={
+                                    reprocessMutation.isPending &&
+                                    reprocessMutation.variables?.id === item.id_interaccion
+                                  }
+                                  leftIcon={<RotateCw className="w-3 h-3 text-blue-600 dark:text-blue-400" />}
+                                  className="text-[10px] px-2 py-0.5 h-6 text-slate-700 dark:text-slate-300"
+                                  title="Reclasificar y generar propuesta comercial con URL"
+                                >
+                                  Reprocesar
+                                </Button>
+                              </div>
                             )}
                           </td>
                         </tr>

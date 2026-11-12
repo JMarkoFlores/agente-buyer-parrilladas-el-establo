@@ -1,0 +1,35 @@
+{
+  "folders": {},
+  "connections": {
+    "sqlserver-buyer-db": {
+      "provider": "mssql",
+      "driver": "mssql_jdbc",
+      "name": "SQL Server (buyer)",
+      "description": "Conexion preconfigurada para Parrilladas El Establo - buyer",
+      "save-password": true,
+      "read-only": false,
+      "configuration": {
+        "host": "sqlserver",
+        "port": "1433",
+        "database": "buyer",
+        "url": "jdbc:sqlserver://sqlserver:1433;databaseName=buyer;encrypt=true;trustServerCertificate=true;",
+        "configurationType": "MANUAL",
+        "auth-model": "native"
+      },
+      "auth-properties": {
+        "user": "sa"
+      }
+    }
+  },
+  "connection-types": {
+    "dev": {
+      "name": "Development",
+      "color": "255,255,255",
+      "description": "Base de datos buyer",
+      "auto-commit": true,
+      "confirm-execute": false,
+      "confirm-data-change": false,
+      "read-only": false
+    }
+  }
+}

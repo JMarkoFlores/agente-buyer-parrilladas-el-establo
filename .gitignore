@@ -21,6 +21,8 @@ backend/.env.*
 !.env.example
 !backend/.env.example
 !**/.env.example
+!.env.docker.example
+!.env.dokploy.example
 
 # Byte-compiled / Caché de Python
 __pycache__/

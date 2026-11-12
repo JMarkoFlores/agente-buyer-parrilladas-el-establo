@@ -378,8 +378,13 @@ class AutoReplyService:
         # 5. Prevención de respuestas retrospectivas masivas a comentarios antiguos
         fecha_inter = getattr(comentario, "fecha_interaccion", None)
         if fecha_inter and max_age_hours > 0:
+            # Normalizar timezone para evitar discrepancias UTC vs hora local
+            if hasattr(fecha_inter, "tzinfo") and fecha_inter.tzinfo is not None:
+                fecha_naive = fecha_inter.astimezone(timezone.utc).replace(tzinfo=None)
+            else:
+                fecha_naive = fecha_inter
             limite_antiguedad = datetime.utcnow() - timedelta(hours=max_age_hours)
-            if fecha_inter < limite_antiguedad:
+            if fecha_naive < limite_antiguedad:
                 return False, f"Comentario anterior al límite de antigüedad permitido ({max_age_hours}h); omitido para prevenir respuestas retrospectivas masivas.", CATEGORIA_OTRO
 
         # 6. Clasificar la intención del texto
@@ -476,9 +481,11 @@ class AutoReplyService:
             # Verificar si la plataforma está habilitada para respuestas
             if plat_code == "FACEBOOK" and not fb_enabled:
                 omitidos += 1
+                logger.info("[AUTO_REPLY] Plataforma=%s\n[AUTO_REPLY] ComentarioID=%s\n[AUTO_REPLY] Elegible=false\n[AUTO_REPLY] Motivo=PLATAFORMA_FACEBOOK_DESHABILITADA", plat_code, com.id_interaccion)
                 continue
             if plat_code == "INSTAGRAM" and not ig_enabled:
                 omitidos += 1
+                logger.info("[AUTO_REPLY] Plataforma=%s\n[AUTO_REPLY] ComentarioID=%s\n[AUTO_REPLY] Elegible=false\n[AUTO_REPLY] Motivo=PLATAFORMA_INSTAGRAM_DESHABILITADA", plat_code, com.id_interaccion)
                 continue
 
             es_elegible, motivo, intencion = self.es_comentario_elegible(
@@ -489,6 +496,35 @@ class AutoReplyService:
 
             if not es_elegible:
                 omitidos += 1
+                logger.info(
+                    "[AUTO_REPLY] Plataforma=%s\n[AUTO_REPLY] ComentarioID=%s\n[AUTO_REPLY] Elegible=false\n[AUTO_REPLY] Motivo=%s",
+                    plat_code,
+                    com.id_interaccion,
+                    motivo,
+                )
+                # Si la omisión es definitiva (no por anti-flood temporal), persistir en dbo.respuesta_automatica
+                # con estado OMITIDA para desatascar la cola de candidatos y evitar reevaluaciones en bucle
+                es_temporal = "anti-flood" in motivo.lower() or "temporal" in motivo.lower()
+                if not es_temporal:
+                    try:
+                        omision_resp = RespuestaAutomatica(
+                            id_interaccion=com.id_interaccion,
+                            id_buyer=com.id_buyer,
+                            id_plataforma=com.publicacion.id_plataforma,
+                            intencion_detectada=intencion,
+                            texto_respuesta=f"[OMITIDA] {motivo}"[:2000],
+                            id_respuesta_meta=None,
+                            estado="OMITIDA",
+                            tipo_envio="AUTOMATICO",
+                            fecha_generacion=datetime.utcnow(),
+                            fecha_envio=None,
+                            error_detalle=motivo[:1000],
+                        )
+                        db.session.add(omision_resp)
+                        db.session.commit()
+                    except Exception as exc_om:
+                        db.session.rollback()
+                        logger.warning("No se pudo persistir registro de omisión para comentario #%d: %s", com.id_interaccion, str(exc_om))
                 continue
 
             # Requisito Prompt 10: Cada comentario nuevo apto recibe su respuesta con la URL oficial
@@ -500,6 +536,11 @@ class AutoReplyService:
             )
             if not texto:
                 omitidos += 1
+                logger.info(
+                    "[AUTO_REPLY] Plataforma=%s\n[AUTO_REPLY] ComentarioID=%s\n[AUTO_REPLY] Elegible=false\n[AUTO_REPLY] Motivo=PLANTILLA_NO_ENCONTRADA",
+                    plat_code,
+                    com.id_interaccion,
+                )
                 continue
 
             # Determinar estado inicial
@@ -512,6 +553,14 @@ class AutoReplyService:
             else:
                 estado_inicial = "APROBADA"
                 tipo_envio = "AUTOMATICO"
+
+            logger.info(
+                "[AUTO_REPLY] Plataforma=%s\n[AUTO_REPLY] ComentarioID=%s\n[AUTO_REPLY] Intencion=%s\n[AUTO_REPLY] Elegible=true\n[AUTO_REPLY] EstadoPrevio=NINGUNO\n[AUTO_REPLY] Accion=GENERAR_RESPUESTA\n[AUTO_REPLY] Resultado=%s",
+                plat_code,
+                com.id_interaccion,
+                intencion,
+                "GENERADA" if estado_inicial in ("APROBADA", "SIMULADA", "PENDIENTE") else estado_inicial,
+            )
 
             nueva_respuesta = RespuestaAutomatica(
                 id_interaccion=com.id_interaccion,
@@ -554,8 +603,18 @@ class AutoReplyService:
                 if estado_inicial == "APROBADA" and not dry_run and enabled:
                     logger.info("Despachando automáticamente respuesta #%d a Meta...", nueva_respuesta.id_respuesta)
                     envio_res = self.enviar_respuesta(nueva_respuesta.id_respuesta)
+                    meta_confirmado = envio_res.get("success", False) and not envio_res.get("simulada", False)
+                    logger.info(
+                        "[AUTO_REPLY] ComentarioID=%s\n[AUTO_REPLY] EnvioMeta=%s",
+                        com.id_interaccion,
+                        "CONFIRMADO" if meta_confirmado else "FALLIDO",
+                    )
                     propuestas_generadas.append(envio_res.get("data", nueva_respuesta.to_dict()))
                 else:
+                    if dry_run:
+                        logger.info("[AUTO_REPLY] ComentarioID=%s\n[AUTO_REPLY] EnvioMeta=SIMULADO", com.id_interaccion)
+                    else:
+                        logger.info("[AUTO_REPLY] ComentarioID=%s\n[AUTO_REPLY] EnvioMeta=PENDIENTE_REVISION", com.id_interaccion)
                     propuestas_generadas.append(nueva_respuesta.to_dict())
 
             except Exception as exc:

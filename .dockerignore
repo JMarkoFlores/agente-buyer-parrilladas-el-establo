@@ -1,0 +1,32 @@
+# Git
+.git/
+.gitignore
+
+# Python y entornos virtuales
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+*.egg-info/
+
+# Node y dependencias de frontend
+node_modules/
+frontend/node_modules/
+frontend/dist/
+.npm/
+
+# Variables de entorno privadas (nunca incluir en imágenes)
+.env
+backend/.env
+frontend/.env
+*.env.local
+
+# Logs y temporales
+*.log
+scratch/
+.system_generated/
+.DS_Store
+Thumbs.db
