@@ -1,6 +1,5 @@
 ---
 import Base from '../layouts/Base.astro';
-import Carta from '../components/Carta.astro';
 import { NEGOCIO, enlaceWhatsApp } from '../app/domain/models/negocio.model';
 import { destacados, soles } from '../app/domain/models/carta.model';
 
@@ -25,7 +24,7 @@ const pasos = [
         </span>
       </a>
       <nav aria-label="Navegación principal" class="hidden items-center gap-8 text-sm text-crema/75 sm:flex">
-        <a href="#carta" class="transition hover:text-crema">Carta</a>
+        <a href="/carta/" class="transition hover:text-crema">Carta</a>
         <a href="#reservas" class="transition hover:text-crema">Reservas</a>
         <a href="#local" class="transition hover:text-crema">El local</a>
       </nav>
@@ -67,7 +66,7 @@ const pasos = [
           </p>
           <div data-hero="cta" class="mt-9 flex flex-wrap gap-3">
             <a
-              href="#carta"
+              href="/carta/"
               class="rounded-full bg-crema px-6 py-3 text-sm font-semibold text-carbon transition hover:bg-white"
             >
               Ver la carta
@@ -159,8 +158,6 @@ const pasos = [
       </div>
     </section>
 
-    <Carta />
-
     <!-- Banda con imagen -->
     <section data-band class="relative isolate overflow-hidden border-y border-crema/10">
       <div class="absolute inset-0 -z-10 overflow-hidden">
@@ -182,7 +179,7 @@ const pasos = [
         </p>
         <a
           data-reveal
-          href="#carta"
+          href="/carta/"
           class="mt-8 inline-block rounded-full border border-crema/25 px-6 py-3 text-sm font-medium transition hover:border-crema/60"
         >
           Ver la carta completa
@@ -281,6 +278,7 @@ const pasos = [
       <p>© {new Date().getFullYear()} {NEGOCIO.nombre}. Todos los derechos reservados.</p>
       <p class="flex flex-wrap items-center gap-x-3 gap-y-1">
         <span>{NEGOCIO.claim}</span>
+        <a href="/carta/" class="underline decoration-crema/20 underline-offset-4 hover:text-crema/70">Carta</a>
         <a href="/creditos" class="underline decoration-crema/20 underline-offset-4 hover:text-crema/70">Créditos de imágenes</a>
       </p>
     </div>
