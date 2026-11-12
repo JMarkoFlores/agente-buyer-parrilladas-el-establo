@@ -200,7 +200,7 @@ export const DashboardPage: React.FC = () => {
 
           {/* Reacciones Facebook */}
           <KpiCard
-            title="Reacciones FB"
+            title="Reacciones Facebook"
             value={likes?.facebook ?? 0}
             icon={ThumbsUp}
             color="blue"
@@ -248,7 +248,7 @@ export const DashboardPage: React.FC = () => {
             description="Navegadores únicos"
           />
           <KpiCard
-            title="Visualiz. Carta"
+            title="Visualizaciones Carta"
             value={landing?.visualizaciones_carta ?? 0}
             icon={Eye}
             color="amber"
@@ -269,14 +269,14 @@ export const DashboardPage: React.FC = () => {
             description="Envíos recibidos"
           />
           <KpiCard
-            title="LEADS Landing"
+            title="LEADS"
             value={landing?.leads ?? 0}
             icon={UserCheck}
             color="emerald"
             description="Personas calificadas"
           />
           <KpiCard
-            title="Conversión Landing"
+            title="Conversión"
             value={landing?.conversion !== undefined ? `${landing.conversion}%` : '0.00%'}
             icon={TrendingUp}
             color="emerald"
