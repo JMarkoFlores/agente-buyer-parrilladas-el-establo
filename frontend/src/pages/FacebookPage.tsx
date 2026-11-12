@@ -22,7 +22,7 @@ import { TableSkeleton } from '../components/ui/Skeleton';
 import { EmptyState } from '../components/ui/EmptyState';
 import { ErrorState } from '../components/ui/ErrorState';
 import { useAdminAuth } from '../contexts/AdminAuthContext';
-import { formatDate } from '../utils/format';
+import { formatDate, formatNombreUsuario } from '../utils/format';
 import type { FacebookPost, SyncResult } from '../types';
 
 export const FacebookPage: React.FC = () => {
@@ -432,6 +432,14 @@ export const FacebookPage: React.FC = () => {
                 </span>
               </h4>
 
+              {postCommentsData?.comentarios &&
+                (postCommentsData.comentarios as any[]).some((c) => !c.nombre_visible) && (
+                  <p className="text-[10px] text-slate-400 mb-2">
+                    {(postCommentsData.comentarios as any[]).filter((c) => !c.nombre_visible).length}{' '}
+                    comentario(s) sin nombre: Meta no expone el autor de esos comentarios.
+                  </p>
+                )}
+
               {isCommentsLoading ? (
                 <TableSkeleton rows={3} />
               ) : !postCommentsData?.comentarios || (postCommentsData.comentarios as any[]).length === 0 ? (
@@ -446,8 +454,15 @@ export const FacebookPage: React.FC = () => {
                       className="p-3 rounded-lg border border-slate-200 dark:border-brand-charcoal-border bg-white dark:bg-brand-charcoal-card text-xs"
                     >
                       <div className="flex items-center justify-between mb-1">
-                        <span className="font-semibold text-slate-900 dark:text-slate-100">
-                          {c.nombre_visible || 'Usuario de Facebook'}
+                        <span
+                          className="font-semibold text-slate-900 dark:text-slate-100"
+                          title={
+                            c.nombre_visible
+                              ? undefined
+                              : 'Meta no expone el nombre del autor de este comentario.'
+                          }
+                        >
+                          {formatNombreUsuario(c.nombre_visible, 'FACEBOOK')}
                         </span>
                         <span className="text-[10px] text-slate-400">
                           {formatDate(c.fecha_interaccion)}

@@ -52,8 +52,26 @@ export function formatNumber(num: number | null | undefined): string {
 
 export function maskExternalRef(ref: string | null | undefined): string {
   if (!ref) return '—';
+  if (ref.includes('***')) return ref;
   if (ref.length <= 8) return ref;
   return `${ref.slice(0, 4)}***${ref.slice(-4)}`;
+}
+
+/**
+ * Nombre visible del autor de un comentario/interacción.
+ * Meta no expone el nombre de todos los autores: cuando falta, se indica el canal.
+ */
+export function formatNombreUsuario(
+  nombre: string | null | undefined,
+  plataforma: string | null | undefined
+): string {
+  const limpio = (nombre || '').trim();
+  if (limpio) return limpio;
+
+  const codigo = (plataforma || '').toUpperCase();
+  if (codigo === 'FACEBOOK') return 'Usuario de Facebook (sin nombre público)';
+  if (codigo === 'INSTAGRAM') return 'Usuario de Instagram (sin nombre público)';
+  return 'Usuario anónimo (sin nombre público)';
 }
 
 export function getIntentColor(intent: string): {

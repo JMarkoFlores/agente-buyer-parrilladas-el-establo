@@ -29,7 +29,7 @@ import { TableSkeleton } from '../components/ui/Skeleton';
 import { EmptyState } from '../components/ui/EmptyState';
 import { ErrorState } from '../components/ui/ErrorState';
 import { useAdminAuth } from '../contexts/AdminAuthContext';
-import { formatDate } from '../utils/format';
+import { formatDate, formatNombreUsuario } from '../utils/format';
 import type { AutoReplyItem, AutoReplyStatusType, CommentTraceabilityItem } from '../types';
 
 export const AutoReplyPage: React.FC = () => {
@@ -750,7 +750,10 @@ export const AutoReplyPage: React.FC = () => {
                           </td>
                           <td className="py-3 px-4 max-w-xs">
                             <p className="font-semibold text-slate-800 dark:text-slate-200">
-                              {r.comentario_original?.nombre_usuario || 'Usuario'}
+                              {formatNombreUsuario(
+                                r.comentario_original?.nombre_usuario,
+                                r.plataforma_codigo
+                              )}
                             </p>
                             <p className="text-slate-600 dark:text-slate-400 text-[11px] line-clamp-2">
                               "{r.comentario_original?.texto || 'Sin texto'}"
@@ -1109,7 +1112,11 @@ export const AutoReplyPage: React.FC = () => {
             <div className="p-4 rounded-xl bg-slate-50 dark:bg-brand-charcoal border border-slate-200 dark:border-brand-charcoal-border space-y-3">
               <div className="flex items-center justify-between">
                 <span className="font-bold text-sm text-slate-900 dark:text-slate-100">
-                  Comentario de: {selectedReply.comentario_original?.nombre_usuario || 'Usuario anónimo'}
+                  Comentario de:{' '}
+                  {formatNombreUsuario(
+                    selectedReply.comentario_original?.nombre_usuario,
+                    selectedReply.plataforma_codigo
+                  )}
                 </span>
                 <Badge variant="intent" intent={selectedReply.intencion_detectada as any}>
                   {selectedReply.intencion_detectada}

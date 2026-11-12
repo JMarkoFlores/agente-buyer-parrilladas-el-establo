@@ -110,3 +110,36 @@ Para asegurar que las ejecuciones de pruebas (Pytest, Vitest, CI/CD) nunca alter
 1. **Fixture de Autouse en `conftest.py`**: Limpia cualquier registro transitorio generado por las pruebas que contenga correos de prueba (`@test.com`, `@example.com`) o nombres de prueba (`Valeria`), respetando rigurosamente el orden de claves foráneas.
 2. **Teardown Inmediato en Endpoints de Landing**: `test_landing_endpoints.py` ejecuta limpieza contextual inmediata dentro de bloques `with client.application.app_context():`, garantizando que al finalizar los 120 tests la base conserva exactamente 6 personas, 11 buyers, 5 conversiones, 25 visitas y 28 eventos.
 3. **Respaldo Nativo de Seguridad**: Se conserva el respaldo físico `backup_buyer_prompt19_initial.bak` fuera de los contenedores Docker para recuperación instantánea ante cualquier contingencia.
+
+---
+
+## 7. Identidad pública del autor del comentario
+
+El nombre que muestra el sistema (`dbo.interaccion_publicacion.nombre_visible`) proviene del objeto `from` que devuelve Meta Graph API al consultar `/{post-id}/comments`.
+
+### Por qué algunos comentarios quedan sin nombre
+
+- Desde Graph API v20.0, Meta **omite el campo `from`** para comentarios de usuarios que no tienen rol en la aplicación. Solo lo devuelve para administradores o usuarios de prueba de la app.
+- En la referencia oficial de `Comment` (v27.0) el campo `from` ya no figura entre los campos documentados.
+- Cuando `from` no viene, el sincronizador guarda `id_usuario_externo = NULL` y `nombre_visible = NULL`, y **no crea un BUYER**: sin identificador externo estable no es posible deduplicar a la persona. Crear un BUYER por comentario generaría un prospecto distinto por cada comentario del mismo cliente.
+- Instagram no presenta este problema porque el campo `username` sí se devuelve en `/{media-id}/comments`.
+
+### Cómo habilitar el nombre en Facebook
+
+1. Verificar el negocio en Meta Business Manager.
+2. En Meta App Dashboard → **App Review → Permissions and Features**, solicitar **Business Asset User Profile Access** con **Advanced Access**.
+3. Completar la revisión de la app (política de privacidad, términos y video de uso).
+4. Confirmar el resultado con Graph API Explorer:
+
+```text
+GET /v27.0/{comment-id}?fields=from
+```
+
+Si devuelve `from: { id, name }`, la app ya tiene el acceso.
+
+### Después de habilitarlo
+
+No se requiere script de backfill: cada ciclo de sincronización vuelve a leer los comentarios de las publicaciones y `upsert_interaccion` actualiza `nombre_visible` cuando llega el nombre. En ese mismo ciclo se crea el BUYER que antes quedaba anónimo.
+
+> Mientras el permiso no esté aprobado, la interfaz muestra `Usuario de Facebook (sin nombre público)` y ofrece el enlace a la publicación de origen para identificar al autor manualmente.
+

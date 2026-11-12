@@ -144,6 +144,8 @@ def test_get_dashboard_buyers(client):
         assert "plataforma_codigo" in b
         assert "estado" in b
         assert "total_interacciones" in b
+        assert "nombre_usuario" in b
+        assert "nombre_usuario_fuente" in b
         # La referencia externa debe estar enmascarada si es extensa
         ref = b.get("referencia_externa_enmascarada")
         if ref and len(ref) > 8 and not ref.startswith("DEMO_"):

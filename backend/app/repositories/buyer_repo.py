@@ -2,7 +2,7 @@
 Repositorio para la entidad Buyer y Prospectos.
 """
 from app.extensions import db
-from app.models.persona import Buyer
+from app.models.persona import Buyer, InteraccionPublicacion
 from app.services.data_filter_service import DataFilterService
 
 
@@ -36,3 +36,33 @@ class BuyerRepository:
     @staticmethod
     def get_by_id(id_buyer: int) -> Buyer | None:
         return db.session.query(Buyer).filter(Buyer.id_buyer == id_buyer).first()
+
+    @staticmethod
+    def get_nombre_publico(id_buyer: int) -> str | None:
+        """
+        Nombre público más reciente expuesto por Meta para las interacciones del BUYER.
+        Meta omite el nombre de algunos autores; en ese caso retorna None.
+        """
+        row = (
+            db.session.query(InteraccionPublicacion.nombre_visible)
+            .filter(
+                InteraccionPublicacion.id_buyer == id_buyer,
+                InteraccionPublicacion.nombre_visible.isnot(None),
+                InteraccionPublicacion.nombre_visible != "",
+            )
+            .order_by(InteraccionPublicacion.fecha_interaccion.desc())
+            .first()
+        )
+        return row[0] if row else None
+
+    @staticmethod
+    def get_ultimas_interacciones(id_buyer: int, limit: int = 5) -> list[InteraccionPublicacion]:
+        query = db.session.query(InteraccionPublicacion).filter(
+            InteraccionPublicacion.id_buyer == id_buyer
+        )
+        query = DataFilterService.apply_real_interaccion_filter(query)
+        return (
+            query.order_by(InteraccionPublicacion.fecha_interaccion.desc())
+            .limit(limit)
+            .all()
+        )

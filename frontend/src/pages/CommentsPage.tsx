@@ -21,7 +21,7 @@ import { TableSkeleton } from '../components/ui/Skeleton';
 import { EmptyState } from '../components/ui/EmptyState';
 import { ErrorState } from '../components/ui/ErrorState';
 import { IntentDistributionChart } from '../components/charts/IntentDistributionChart';
-import { formatDate } from '../utils/format';
+import { formatDate, formatNombreUsuario } from '../utils/format';
 import type { CommentItem } from '../types';
 
 export const CommentsPage: React.FC = () => {
@@ -334,7 +334,7 @@ export const CommentsPage: React.FC = () => {
                           </span>
                         </td>
                         <td className="py-3 px-4 font-medium text-slate-900 dark:text-slate-100 whitespace-nowrap">
-                          {c.nombre_usuario || 'Usuario anónimo'}
+                          {formatNombreUsuario(c.nombre_usuario, c.plataforma)}
                         </td>
                         <td className="py-3 px-4 max-w-xs sm:max-w-md truncate text-slate-700 dark:text-slate-300">
                           {c.texto}
@@ -396,7 +396,7 @@ export const CommentsPage: React.FC = () => {
             <div className="p-4 rounded-xl bg-slate-50 dark:bg-brand-charcoal border border-slate-200 dark:border-brand-charcoal-border space-y-3">
               <div className="flex items-center justify-between">
                 <span className="font-bold text-sm text-slate-900 dark:text-slate-100">
-                  {selectedComment.nombre_usuario || 'Usuario anónimo'}
+                  {formatNombreUsuario(selectedComment.nombre_usuario, selectedComment.plataforma)}
                 </span>
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
                   Meta Real Verificado

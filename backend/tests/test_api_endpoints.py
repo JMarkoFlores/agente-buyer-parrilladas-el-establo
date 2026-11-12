@@ -136,6 +136,11 @@ def test_get_buyer_by_id(client):
     assert body["data"]["id_buyer"] == 1
     assert body["data"]["estado"] == "CONVERTIDO_LEAD"
     assert body["data"]["persona"]["nombres"] == "Ana"
+    # Nombre público y trazabilidad del BUYER
+    assert "nombre_usuario" in body["data"]
+    assert (body["data"]["nombre_usuario"] or "").startswith("Ana")
+    assert "referencia_externa_enmascarada" in body["data"]
+    assert isinstance(body["data"]["ultimas_interacciones"], list)
 
     # ID no existente
     not_found = client.get("/api/buyers/9999")

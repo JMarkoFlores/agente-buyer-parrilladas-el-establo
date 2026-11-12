@@ -25,7 +25,7 @@ import { TableSkeleton } from '../components/ui/Skeleton';
 import { EmptyState } from '../components/ui/EmptyState';
 import { ErrorState } from '../components/ui/ErrorState';
 import { useAdminAuth } from '../contexts/AdminAuthContext';
-import { formatDate } from '../utils/format';
+import { formatDate, formatNombreUsuario } from '../utils/format';
 import type { InstagramPost, SyncResult } from '../types';
 
 export const InstagramPage: React.FC = () => {
@@ -488,8 +488,15 @@ export const InstagramPage: React.FC = () => {
                       className="p-3 rounded-lg border border-slate-200 dark:border-brand-charcoal-border bg-white dark:bg-brand-charcoal-card text-xs"
                     >
                       <div className="flex items-center justify-between mb-1">
-                        <span className="font-semibold text-slate-900 dark:text-slate-100">
-                          {c.nombre_visible || 'Usuario de Instagram'}
+                        <span
+                          className="font-semibold text-slate-900 dark:text-slate-100"
+                          title={
+                            c.nombre_visible
+                              ? undefined
+                              : 'Meta no expone el nombre del autor de este comentario.'
+                          }
+                        >
+                          {formatNombreUsuario(c.nombre_visible, 'INSTAGRAM')}
                         </span>
                         <span className="text-[10px] text-slate-400">
                           {formatDate(c.fecha_interaccion)}

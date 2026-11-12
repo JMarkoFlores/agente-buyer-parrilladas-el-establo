@@ -21,6 +21,7 @@ from app.models.auditoria import AccionAgente
 from app.services.interest_classifier import InterestClassifier
 from app.services.sync_scheduler import SyncSchedulerService
 from app.services.data_filter_service import DataFilterService
+from app.services.buyer_service import mask_external_ref
 from app.services.kpi_service import KpiService
 from app.models.web import VisitaWeb
 from app.models.conversion import FormularioCaptacion
@@ -302,6 +303,25 @@ def get_dashboard_buyers():
     total = query.count()
     buyers = query.order_by(desc(Buyer.fecha_primer_contacto)).offset(offset).limit(limit).all()
 
+    # Nombre público del autor: se resuelve en una sola consulta para toda la página.
+    # Meta omite el nombre de algunos comentarios, por lo que puede quedar en None.
+    nombres_red_social: dict[int, str] = {}
+    ids_buyers = [b.id_buyer for b in buyers]
+    if ids_buyers:
+        nombres_query = db.session.query(
+            InteraccionPublicacion.id_buyer,
+            InteraccionPublicacion.nombre_visible,
+        ).filter(
+            InteraccionPublicacion.id_buyer.in_(ids_buyers),
+            InteraccionPublicacion.nombre_visible.isnot(None),
+            InteraccionPublicacion.nombre_visible != "",
+        )
+        nombres_query = DataFilterService.apply_real_interaccion_filter(nombres_query)
+        for id_buyer, nombre in nombres_query.order_by(
+            desc(InteraccionPublicacion.fecha_interaccion)
+        ).all():
+            nombres_red_social.setdefault(id_buyer, nombre)
+
     items = []
     for b in buyers:
         # Calcular interacciones según el canal de origen
@@ -323,26 +343,25 @@ def get_dashboard_buyers():
             cant_interacciones = 0
             origen_str = "OTRO"
 
-        # Enmascaramiento seguro de referencia externa sin exponer UUIDs completos ni PII
-        ref = b.referencia_externa or ""
-        if ref.startswith("WEB_"):
-            token_part = ref[4:]
-            ref_enm = f"WEB_{token_part[:6]}***{token_part[-4:]}" if len(token_part) > 10 else ref
-        elif len(ref) > 8:
-            ref_enm = ref[:4] + "***" + ref[-4:]
-        else:
-            ref_enm = ref
+        nombre_persona = (
+            f"{b.persona.nombres} {b.persona.apellidos}".strip() if b.persona else None
+        )
+        nombre_usuario = nombre_persona or nombres_red_social.get(b.id_buyer)
 
         items.append({
             "id_buyer": b.id_buyer,
             "id_persona": b.id_persona,
-            "persona_nombre": f"{b.persona.nombres} {b.persona.apellidos}" if b.persona else None,
+            "persona_nombre": nombre_persona,
+            "nombre_usuario": nombre_usuario,
+            "nombre_usuario_fuente": (
+                "PERSONA" if nombre_persona else ("RED_SOCIAL" if nombre_usuario else None)
+            ),
             "id_plataforma_origen": b.id_plataforma_origen,
             "plataforma_codigo": b.plataforma_origen.codigo if b.plataforma_origen else "DESCONOCIDA",
             "id_publicacion_origen": b.id_publicacion_origen,
             "meta_post_id_origen": b.publicacion_origen.meta_post_id if b.publicacion_origen else None,
             "url_publicacion_origen": b.publicacion_origen.url_publicacion if b.publicacion_origen else None,
-            "referencia_externa_enmascarada": ref_enm,
+            "referencia_externa_enmascarada": mask_external_ref(b.referencia_externa),
             "fecha_primer_contacto": b.fecha_primer_contacto.isoformat() if b.fecha_primer_contacto else None,
             "estado": b.estado,
             "total_interacciones": cant_interacciones,

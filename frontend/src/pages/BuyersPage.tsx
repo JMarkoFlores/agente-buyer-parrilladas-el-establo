@@ -14,6 +14,7 @@ import {
   Shield,
   UserCheck,
   UserX,
+  Info,
 } from 'lucide-react';
 import { ApiService } from '../services/api';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
@@ -23,7 +24,7 @@ import { Modal } from '../components/ui/Modal';
 import { TableSkeleton } from '../components/ui/Skeleton';
 import { EmptyState } from '../components/ui/EmptyState';
 import { ErrorState } from '../components/ui/ErrorState';
-import { formatDate, maskExternalRef } from '../utils/format';
+import { formatDate, formatNombreUsuario, maskExternalRef } from '../utils/format';
 import type { BuyerItem, BuyerDetail } from '../types';
 
 export const BuyersPage: React.FC = () => {
@@ -72,7 +73,10 @@ export const BuyersPage: React.FC = () => {
       const refMatch = b.referencia_externa_enmascarada?.toLowerCase().includes(term);
       const idMatch = String(b.id_buyer).includes(term);
       const platMatch = b.plataforma_codigo?.toLowerCase().includes(term);
-      return refMatch || idMatch || platMatch;
+      const nameMatch = (b.nombre_usuario || b.persona_nombre || '')
+        .toLowerCase()
+        .includes(term);
+      return refMatch || idMatch || platMatch || nameMatch;
     });
   }, [buyers, statusFilter, searchTerm]);
 
@@ -179,7 +183,7 @@ export const BuyersPage: React.FC = () => {
             <p className="text-sm font-bold text-slate-900 dark:text-slate-100 mt-1">
               Enmascarado
             </p>
-            <span className="text-[11px] text-slate-400">Sin exponer PII sensible</span>
+            <span className="text-[11px] text-slate-400">Referencias externas enmascaradas</span>
           </CardContent>
         </Card>
       </div>
@@ -207,7 +211,7 @@ export const BuyersPage: React.FC = () => {
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Buscar por ID o referencia..."
+              placeholder="Buscar por nombre, ID o referencia..."
               className="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-brand-red"
             />
           </div>
@@ -260,6 +264,7 @@ export const BuyersPage: React.FC = () => {
                 <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 uppercase font-bold text-[10px] tracking-wider border-b border-slate-200 dark:border-slate-700">
                   <tr>
                     <th className="py-3 px-4">ID BUYER</th>
+                    <th className="py-3 px-4">Usuario</th>
                     <th className="py-3 px-4">Plataforma</th>
                     <th className="py-3 px-4">Referencia Externa</th>
                     <th className="py-3 px-4">Publicación Origen</th>
@@ -278,6 +283,28 @@ export const BuyersPage: React.FC = () => {
                       >
                         <td className="py-3 px-4 font-mono font-bold text-slate-900 dark:text-slate-100 whitespace-nowrap">
                           #{b.id_buyer}
+                        </td>
+                        <td className="py-3 px-4 whitespace-nowrap">
+                          {b.nombre_usuario || b.persona_nombre ? (
+                            <div>
+                              <p className="font-semibold text-slate-900 dark:text-slate-100">
+                                {b.nombre_usuario || b.persona_nombre}
+                              </p>
+                              <p className="text-[10px] text-slate-400">
+                                {b.nombre_usuario_fuente === 'PERSONA'
+                                  ? 'Formulario'
+                                  : 'Perfil Meta'}
+                              </p>
+                            </div>
+                          ) : (
+                            <span
+                              className="inline-flex items-center gap-1 text-[11px] italic text-slate-400"
+                              title="Meta no expone el nombre del autor de este comentario."
+                            >
+                              <Info className="w-3 h-3" />
+                              Sin nombre público
+                            </span>
+                          )}
                         </td>
                         <td className="py-3 px-4 whitespace-nowrap">
                           <span className="inline-flex items-center gap-1.5 font-semibold">
@@ -307,9 +334,22 @@ export const BuyersPage: React.FC = () => {
                         </td>
                         <td className="py-3 px-4 whitespace-nowrap text-slate-500 font-mono text-[11px]">
                           {b.id_publicacion_origen ? (
-                            <span className="text-brand-red dark:text-rose-400 font-medium">
-                              Post #{b.id_publicacion_origen}
-                            </span>
+                            b.url_publicacion_origen ? (
+                              <a
+                                href={b.url_publicacion_origen}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-1 text-brand-red dark:text-rose-400 font-medium hover:underline"
+                                title="Abrir publicación de origen"
+                              >
+                                Post #{b.id_publicacion_origen}
+                                <ExternalLink className="w-3 h-3" />
+                              </a>
+                            ) : (
+                              <span className="text-brand-red dark:text-rose-400 font-medium">
+                                Post #{b.id_publicacion_origen}
+                              </span>
+                            )
                           ) : (
                             '—'
                           )}
@@ -374,6 +414,20 @@ export const BuyersPage: React.FC = () => {
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 text-xs pt-2 border-t border-slate-200 dark:border-slate-700">
+                  <div className="col-span-2">
+                    <span className="text-slate-400 block">Usuario / Nombre:</span>
+                    <span className="font-semibold text-slate-700 dark:text-slate-300">
+                      {formatNombreUsuario(
+                        buyerDetail?.nombre_usuario || selectedBuyer.nombre_usuario,
+                        selectedBuyer.plataforma_codigo
+                      )}
+                    </span>
+                    {!buyerDetail?.nombre_usuario && !selectedBuyer.nombre_usuario && (
+                      <span className="block text-[10px] text-slate-400 mt-0.5">
+                        Meta no expone el nombre público de este autor.
+                      </span>
+                    )}
+                  </div>
                   <div>
                     <span className="text-slate-400 block">Canal de Captación:</span>
                     <span className="font-semibold text-slate-700 dark:text-slate-300">
@@ -399,6 +453,54 @@ export const BuyersPage: React.FC = () => {
                     </span>
                   </div>
                 </div>
+
+                {selectedBuyer.url_publicacion_origen && (
+                  <a
+                    href={selectedBuyer.url_publicacion_origen}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-[11px] font-medium text-blue-600 dark:text-blue-400 hover:underline"
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                    Ver publicación de origen en{' '}
+                    {selectedBuyer.plataforma_codigo === 'FACEBOOK' ? 'Facebook' : 'Instagram'}
+                  </a>
+                )}
+
+                {buyerDetail?.ultimas_interacciones &&
+                  buyerDetail.ultimas_interacciones.length > 0 && (
+                    <div className="mt-3">
+                      <p className="font-bold text-slate-700 dark:text-slate-300 text-xs mb-1.5">
+                        Últimas interacciones registradas:
+                      </p>
+                      <ul className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                        {buyerDetail.ultimas_interacciones.map((inter) => (
+                          <li
+                            key={inter.id_interaccion}
+                            className="p-2 rounded-lg bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700"
+                          >
+                            <p className="text-[11px] text-slate-700 dark:text-slate-200">
+                              {inter.texto || '(comentario sin texto)'}
+                            </p>
+                            <div className="flex items-center justify-between mt-1 text-[10px] text-slate-400">
+                              <span>{formatDate(inter.fecha_interaccion)}</span>
+                              {inter.url_publicacion && (
+                                <a
+                                  href={inter.url_publicacion}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-0.5 text-blue-600 dark:text-blue-400 hover:underline"
+                                >
+                                  Ver publicación
+                                  <ExternalLink className="w-2.5 h-2.5" />
+                                </a>
+                              )}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
 
                 {buyerDetail?.persona && (
                   <div className="mt-3 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-xs">

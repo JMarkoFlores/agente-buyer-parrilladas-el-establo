@@ -178,6 +178,8 @@ export interface BuyerItem {
   id_buyer: number;
   id_persona?: number | null;
   persona_nombre?: string | null;
+  nombre_usuario?: string | null;
+  nombre_usuario_fuente?: 'PERSONA' | 'RED_SOCIAL' | null;
   id_plataforma_origen: number;
   plataforma_codigo: PlatformCode | string;
   id_publicacion_origen: number | null;
@@ -198,6 +200,15 @@ export interface BuyersResponse {
   items: BuyerItem[];
 }
 
+export interface BuyerInteraction {
+  id_interaccion: number;
+  texto: string | null;
+  tipo: string;
+  fecha_interaccion: string | null;
+  meta_post_id: string | null;
+  url_publicacion: string | null;
+}
+
 export interface BuyerDetail {
   id_buyer: number;
   id_persona: number | null;
@@ -215,6 +226,10 @@ export interface BuyerDetail {
   id_publicacion_origen: number | null;
   id_anuncio_origen: number | null;
   referencia_externa: string | null;
+  referencia_externa_enmascarada?: string | null;
+  nombre_usuario?: string | null;
+  nombre_usuario_fuente?: 'PERSONA' | 'RED_SOCIAL' | null;
+  ultimas_interacciones?: BuyerInteraction[];
   fecha_primer_contacto: string | null;
   estado: string;
   fecha_conversion: string | null;
