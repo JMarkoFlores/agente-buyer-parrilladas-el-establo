@@ -257,7 +257,7 @@ export const LandingPage: React.FC = () => {
 
           {/* Enlace directo a la Landing */}
           <a
-            href="http://localhost:4321"
+            href="https://elestablo2.giansmd.dev/"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors"
