@@ -1,5 +1,8 @@
 FROM node:24-alpine AS build
 WORKDIR /app
+# Build arg: base de la API inlineada por Astro (PUBLIC_*)
+ARG PUBLIC_API_URL=https://elestablo.giansmd.dev
+ENV PUBLIC_API_URL=$PUBLIC_API_URL
 RUN corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
