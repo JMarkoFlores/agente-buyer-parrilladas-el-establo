@@ -7,11 +7,11 @@ CONFIG_DIR="${WORKSPACE_DIR}/GlobalConfiguration/.dbeaver"
 # Crear ruta de configuracion inicial si el volumen persistente esta vacio
 mkdir -p "${CONFIG_DIR}"
 
-if [ ! -f "${CONFIG_DIR}/data-sources.json" ] || ! grep -q 'sqlserver-buyer-db' "${CONFIG_DIR}/data-sources.json"; then
+# Sembrar siempre la configuracion global (conexiones compartidas preconfiguradas).
+# ponytail: sobrescribe en cada arranque; las conexiones creadas en la UI viven en user-projects.
+if [ -f "/opt/cloudbeaver-template/data-sources.json" ]; then
     echo "[CloudBeaver Init] Sembrando data-sources.json global con la conexion buyer..."
-    if [ -f "/opt/cloudbeaver-template/data-sources.json" ]; then
-        cp /opt/cloudbeaver-template/data-sources.json "${CONFIG_DIR}/data-sources.json"
-    fi
+    cp /opt/cloudbeaver-template/data-sources.json "${CONFIG_DIR}/data-sources.json"
 fi
 
 # Asegurar permisos correctos en el volumen de trabajo
