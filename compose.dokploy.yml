@@ -53,6 +53,8 @@ services:
       MSSQL_PID: Express
       MSSQL_SA_PASSWORD: "Probe2026!Abcd1234"
     command: ["/opt/mssql/bin/sqlservr"]
+    volumes:
+      - sqlserver_data:/var/opt/mssql
     networks:
       - internal
 
