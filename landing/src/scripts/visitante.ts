@@ -172,34 +172,52 @@ async function registrarVisitaEnServidor(tokens: TokensSesion, origen: Parametro
   }
 }
 
+let listenersConfigurados = false;
+
+/** Registra el evento VISTA_CARTA una única vez por carga de página */
+export function registrarVistaCartaSiAplica(): void {
+  if (typeof window === 'undefined') return;
+
+  const ruta = window.location.pathname.replace(/\/$/, '');
+  if (ruta === '/carta' || ruta.endsWith('/carta')) {
+    const w = window as unknown as { __establo_vista_carta_enviada?: boolean };
+    if (!w.__establo_vista_carta_enviada) {
+      w.__establo_vista_carta_enviada = true;
+      registrarEvento('VISTA_CARTA', null, '/carta/');
+    }
+  }
+}
+
 /** Configura escuchadores de clics globales para métricas de interacción */
 function configurarSeguimientoInteracciones(): void {
   if (typeof document === 'undefined') return;
 
-  document.addEventListener('click', (evento) => {
-    const target = (evento.target as HTMLElement | null)?.closest('a, button');
-    if (!target) return;
+  if (!listenersConfigurados) {
+    listenersConfigurados = true;
 
-    const href = target.getAttribute('href') || '';
+    document.addEventListener('click', (evento) => {
+      const target = (evento.target as HTMLElement | null)?.closest('a, button');
+      if (!target) return;
 
-    // Clic en carta
-    if (href.includes('/carta') || target.hasAttribute('data-track-carta')) {
-      registrarEvento('CLIC_CARTA', null, 'Clic hacia la carta');
-    }
-    // Clic en WhatsApp
-    else if (href.includes('wa.me') || href.includes('whatsapp.com')) {
-      registrarEvento('CLIC_WHATSAPP', null, 'Clic en botón WhatsApp');
-    }
-    // Clic en formulario o reserva
-    else if (href.includes('/registro') || href.includes('#reservas')) {
-      registrarEvento('CLIC_FORMULARIO', null, 'Clic hacia el formulario de reserva');
-    }
-  });
+      const href = target.getAttribute('href') || '';
 
-  // Si estamos en la página de la carta completa, registrar VISTA_CARTA
-  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/carta')) {
-    registrarEvento('VISTA_CARTA', null, 'Página de carta visualizada');
+      // Clic en carta desde botones o links
+      if (href.includes('/carta') || target.hasAttribute('data-track-carta')) {
+        registrarEvento('CLIC_CARTA', null, 'Clic hacia la carta');
+      }
+      // Clic en WhatsApp
+      else if (href.includes('wa.me') || href.includes('whatsapp.com')) {
+        registrarEvento('CLIC_WHATSAPP', null, 'Clic en botón WhatsApp');
+      }
+      // Clic en formulario o reserva
+      else if (href.includes('/registro') || href.includes('#reservas')) {
+        registrarEvento('CLIC_FORMULARIO', null, 'Clic hacia el formulario de reserva');
+      }
+    });
   }
+
+  // Registrar visualización real de la carta si estamos en la ruta /carta/
+  registrarVistaCartaSiAplica();
 }
 
 /** Se llama en cada página: crea tokens, captura la atribución y registra la sesión */

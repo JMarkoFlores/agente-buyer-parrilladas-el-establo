@@ -16,6 +16,7 @@ import type {
   AutoReplyItem,
   CommentTraceabilityResponse,
   LandingStatsResponse,
+  LandingDetailResponse,
 } from '../types';
 
 const api = axios.create({
@@ -309,8 +310,24 @@ export const ApiService = {
   async getLandingStats(params?: {
     fecha_inicio?: string;
     fecha_fin?: string;
+    periodo?: string;
   }): Promise<LandingStatsResponse> {
     const res = await api.get<LandingStatsResponse>('/landing/estadisticas', { params });
+    return res.data;
+  },
+
+  // Landing Page Details (on demand)
+  async getLandingDetails<T>(
+    tipo: string,
+    params?: {
+      fecha_inicio?: string;
+      fecha_fin?: string;
+      periodo?: string;
+      page?: number;
+      page_size?: number;
+    }
+  ): Promise<LandingDetailResponse<T>> {
+    const res = await api.get<LandingDetailResponse<T>>(`/landing/detalles/${tipo}`, { params });
     return res.data;
   },
 };

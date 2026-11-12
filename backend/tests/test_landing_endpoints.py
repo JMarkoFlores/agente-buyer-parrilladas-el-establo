@@ -126,5 +126,93 @@ def test_get_landing_estadisticas(client: FlaskClient):
     assert data["success"] is True
     assert "resumen" in data
     assert data["resumen"]["total_visitas"] >= 1
+    # Métricas Prompt 18
+    assert "visitas_landing" in data["resumen"]
+    assert "visitantes_landing" in data["resumen"]
+    assert "visualizaciones_carta" in data["resumen"]
+    assert "visitantes_carta" in data["resumen"]
+    assert "formularios" in data["resumen"]
+    assert "leads" in data["resumen"]
+    assert "conversion" in data["resumen"]
     assert "visitas_por_dia" in data
     assert "formularios_recientes" in data
+
+
+def test_vista_carta_idempotency(client: FlaskClient):
+    token_vis = str(uuid.uuid4())
+    res_vis = client.post(
+        "/api/landing/visitas",
+        json={"token_visitante": token_vis, "dispositivo_tipo": "ESCRITORIO", "ruta": "/carta/"},
+    )
+    id_visita = res_vis.get_json()["id_visita"]
+
+    # Primer registro de VISTA_CARTA
+    res1 = client.post(
+        "/api/landing/eventos",
+        json={"id_visita": id_visita, "tipo": "VISTA_CARTA", "ruta": "/carta/"},
+    )
+    assert res1.status_code == 201
+    assert res1.get_json()["success"] is True
+
+    # Segundo registro dentro de la ventana de 4s (debe ser idempotente)
+    res2 = client.post(
+        "/api/landing/eventos",
+        json={"id_visita": id_visita, "tipo": "VISTA_CARTA", "ruta": "/carta/"},
+    )
+    assert res2.status_code == 200
+    assert res2.get_json()["idempotente"] is True
+
+
+def test_get_landing_estadisticas_periodos(client: FlaskClient):
+    for p in ["hoy", "7dias", "30dias", "todo"]:
+        res = client.get(f"/api/landing/estadisticas?periodo={p}")
+        assert res.status_code == 200
+        data = res.get_json()
+        assert data["success"] is True
+        assert "resumen" in data
+        assert "conversion_detalle" in data["resumen"]
+
+
+def test_detalles_endpoints_and_masking(client: FlaskClient):
+    # 1. Visitas
+    r_visitas = client.get("/api/landing/detalles/visitas?page=1&page_size=5")
+    assert r_visitas.status_code == 200
+    assert r_visitas.get_json()["success"] is True
+
+    # 2. Visitantes
+    r_visitantes = client.get("/api/landing/detalles/visitantes?page=1&page_size=5")
+    assert r_visitantes.status_code == 200
+    assert r_visitantes.get_json()["success"] is True
+
+    # 3. Visualizaciones Carta
+    r_vc = client.get("/api/landing/detalles/visualizaciones-carta?page=1&page_size=5")
+    assert r_vc.status_code == 200
+    assert r_vc.get_json()["success"] is True
+
+    # 4. Visitantes Carta
+    r_vc_vis = client.get("/api/landing/detalles/visitantes-carta?page=1&page_size=5")
+    assert r_vc_vis.status_code == 200
+    assert r_vc_vis.get_json()["success"] is True
+
+    # 5. Formularios - Sin autenticación (enmascarado)
+    r_form_unauth = client.get("/api/landing/detalles/formularios?page=1&page_size=5")
+    assert r_form_unauth.status_code == 200
+    data_unauth = r_form_unauth.get_json()
+    assert data_unauth["success"] is True
+    if len(data_unauth["items"]) > 0:
+        item = data_unauth["items"][0]
+        assert "***" in item["telefono"] or item["telefono"] == ""
+
+    # Formularios - Con autenticación Admin
+    r_form_auth = client.get(
+        "/api/landing/detalles/formularios?page=1&page_size=5",
+        headers={"X-Admin-Token": "establo_secret_admin_2026"},
+    )
+    assert r_form_auth.status_code == 200
+    assert r_form_auth.get_json()["success"] is True
+
+    # 6. Leads
+    r_leads = client.get("/api/landing/detalles/leads?page=1&page_size=5")
+    assert r_leads.status_code == 200
+    assert r_leads.get_json()["success"] is True
+

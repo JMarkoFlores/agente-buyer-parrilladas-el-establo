@@ -385,13 +385,119 @@ export interface CommentTraceabilityResponse {
 }
 
 export interface LandingResumen {
-  total_visitas: number;
-  visitantes_unicos: number;
-  clics_carta: number;
-  visitas_carta: number;
-  formularios_exitosos: number;
-  leads_nuevos: number;
-  tasa_conversion: number;
+  visitas_landing: number;
+  visitantes_landing: number;
+  visualizaciones_carta: number;
+  visitantes_carta: number;
+  formularios: number;
+  leads: number;
+  conversion: number;
+  // Compatibilidad con versiones previas
+  total_visitas?: number;
+  visitantes_unicos?: number;
+  clics_carta?: number;
+  visitas_carta?: number;
+  formularios_exitosos?: number;
+  leads_nuevos?: number;
+  tasa_conversion?: number;
+  conversion_detalle?: {
+    numerador_leads: number;
+    denominador_visitantes: number;
+    resultado_tasa: number;
+    periodo: string;
+  };
+}
+
+export type LandingDetailType =
+  | 'visitas'
+  | 'visitantes'
+  | 'visualizaciones_carta'
+  | 'visitantes_carta'
+  | 'formularios'
+  | 'leads'
+  | 'conversion';
+
+export interface LandingDetailResponse<T> {
+  success: boolean;
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+  items: T[];
+  error?: string;
+}
+
+export interface VisitaDetailItem {
+  id_visita: number;
+  id_visitante: number;
+  token_visitante: string;
+  token_visitante_abreviado: string;
+  fecha: string;
+  ruta: string;
+  canal_origen: string;
+  utm_campaign: string | null;
+  dispositivo_tipo: string;
+}
+
+export interface VisitanteDetailItem {
+  id_visitante: number;
+  token_visitante: string;
+  token_visitante_abreviado: string;
+  primera_visita: string;
+  ultima_visita: string;
+  total_accesos: number;
+  dispositivo_tipo: string;
+}
+
+export interface VisualizacionCartaDetailItem {
+  id_evento: number;
+  id_visita: number;
+  id_visitante: number | null;
+  token_visitante: string;
+  token_visitante_abreviado: string;
+  fecha: string;
+  ruta: string;
+  detalle: string;
+  canal_origen: string;
+}
+
+export interface VisitanteCartaDetailItem {
+  id_visitante: number;
+  token_visitante: string;
+  token_visitante_abreviado: string;
+  primera_apertura: string;
+  ultima_apertura: string;
+  total_visualizaciones: number;
+  dispositivo_tipo: string;
+}
+
+export interface FormularioDetailItem {
+  id_formulario: number;
+  id_persona: number;
+  persona_nombre: string;
+  telefono: string;
+  email: string;
+  fecha_envio: string;
+  plato_favorito: string;
+  estado: string;
+  origen: string;
+  utm_campaign: string | null;
+  acepta_marketing: boolean;
+  es_admin?: boolean;
+}
+
+export interface LeadDetailItem {
+  id_conversion: number;
+  id_lead: number | null;
+  id_persona: number;
+  persona_nombre: string;
+  telefono: string;
+  email: string;
+  plato_favorito: string;
+  fecha_conversion: string;
+  plataforma_origen: string;
+  estado_buyer: string;
+  es_admin?: boolean;
 }
 
 export interface VisitaDiaItem {
@@ -414,6 +520,7 @@ export interface FormularioRecienteItem {
 
 export interface LandingStatsResponse {
   success: boolean;
+  periodo?: string;
   resumen: LandingResumen;
   visitas_por_dia: VisitaDiaItem[];
   formularios_recientes: FormularioRecienteItem[];
