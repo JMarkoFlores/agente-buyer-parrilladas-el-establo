@@ -54,7 +54,21 @@ services:
       MSSQL_SA_PASSWORD: "Probe2026!Abcd1234"
     command: ["/opt/mssql/bin/sqlservr"]
     volumes:
-      - sqlserver_data:/var/opt/mssql
+      - probe_data_a:/var/opt/mssql
+    networks:
+      - internal
+
+  sqlprobe2:
+    build:
+      context: ./docker/sqlserver
+      dockerfile: Dockerfile
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Express
+      MSSQL_SA_PASSWORD: "Probe2026!Abcd1234"
+      DB_PASSWORD: "Probe2026!Abcd1234"
+    volumes:
+      - probe_data_b:/var/opt/mssql
     networks:
       - internal
 
@@ -285,3 +299,5 @@ volumes:
   # Volúmenes persistentes con nombres con ámbito de proyecto (evita colisiones)
   sqlserver_data:
   cloudbeaver_data:
+  probe_data_a:
+  probe_data_b:
