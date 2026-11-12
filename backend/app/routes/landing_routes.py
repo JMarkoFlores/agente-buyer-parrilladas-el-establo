@@ -19,6 +19,7 @@ from app.models.catalogo import CategoriaProducto, ProductoCarta, PresentacionPr
 from app.models.web import VisitanteWeb, VisitaWeb, EventoWeb
 from app.models.persona import Persona, Buyer
 from app.models.conversion import FormularioCaptacion, LeadConversion, HistorialFases
+from app.services.kpi_service import KpiService
 
 logger = logging.getLogger(__name__)
 
@@ -744,92 +745,7 @@ def obtener_estadisticas_landing():
     """
     try:
         f_inicio, f_fin, periodo_label = obtener_rango_fechas()
-
-        # 1. Visitas Landing (total sesiones iniciadas)
-        q_visitas = VisitaWeb.query
-        if f_inicio:
-            q_visitas = q_visitas.filter(VisitaWeb.fecha_inicio >= f_inicio)
-        if f_fin:
-            q_visitas = q_visitas.filter(VisitaWeb.fecha_inicio <= f_fin)
-        visitas_landing = q_visitas.count()
-
-        # 2. Visitantes Landing (navegadores únicos aproximados)
-        visitantes_landing = q_visitas.with_entities(func.count(distinct(VisitaWeb.id_visitante))).scalar() or 0
-
-        # 3. Visualizaciones Carta (eventos VISTA_CARTA válidos)
-        q_vc = EventoWeb.query.filter(EventoWeb.tipo == "VISTA_CARTA")
-        if f_inicio:
-            q_vc = q_vc.filter(EventoWeb.fecha_evento >= f_inicio)
-        if f_fin:
-            q_vc = q_vc.filter(EventoWeb.fecha_evento <= f_fin)
-        visualizaciones_carta = q_vc.count()
-
-        # 4. Visitantes Carta (navegadores únicos que abrieron /carta/)
-        q_vc_vis = (
-            db.session.query(func.count(distinct(VisitaWeb.id_visitante)))
-            .join(EventoWeb, VisitaWeb.id_visita == EventoWeb.id_visita)
-            .filter(EventoWeb.tipo == "VISTA_CARTA")
-        )
-        if f_inicio:
-            q_vc_vis = q_vc_vis.filter(EventoWeb.fecha_evento >= f_inicio)
-        if f_fin:
-            q_vc_vis = q_vc_vis.filter(EventoWeb.fecha_evento <= f_fin)
-        visitantes_carta = q_vc_vis.scalar() or 0
-
-        # Clics en la carta históricos (mantenidos para retrocompatibilidad)
-        q_clics = EventoWeb.query.filter(EventoWeb.tipo.in_(["CLIC_CARTA", "VER_MENU"]))
-        if f_inicio:
-            q_clics = q_clics.filter(EventoWeb.fecha_evento >= f_inicio)
-        if f_fin:
-            q_clics = q_clics.filter(EventoWeb.fecha_evento <= f_fin)
-        clics_carta = q_clics.count()
-
-        # 5. Formularios exitosos (plataforma 3 = LANDING_PAGE)
-        q_forms = FormularioCaptacion.query.filter_by(id_plataforma_origen=3)
-        if f_inicio:
-            q_forms = q_forms.filter(FormularioCaptacion.fecha_envio >= f_inicio)
-        if f_fin:
-            q_forms = q_forms.filter(FormularioCaptacion.fecha_envio <= f_fin)
-        formularios = q_forms.count()
-
-        # 6. LEADS únicos nuevos (distinct persona)
-        q_leads = (
-            db.session.query(func.count(distinct(LeadConversion.id_persona)))
-            .join(FormularioCaptacion, LeadConversion.id_formulario == FormularioCaptacion.id_formulario)
-            .filter(FormularioCaptacion.id_plataforma_origen == 3)
-        )
-        if f_inicio:
-            q_leads = q_leads.filter(LeadConversion.fecha_conversion >= f_inicio)
-        if f_fin:
-            q_leads = q_leads.filter(LeadConversion.fecha_conversion <= f_fin)
-        leads = q_leads.scalar() or 0
-
-        # 7. Tasa de conversión (%)
-        conversion = round((leads / visitantes_landing * 100), 2) if visitantes_landing > 0 else 0.0
-
-        # Serie diaria de visitas
-        q_dias = (
-            db.session.query(
-                func.cast(VisitaWeb.fecha_inicio, db.Date).label("fecha"),
-                func.count(VisitaWeb.id_visita).label("visitas"),
-                func.count(distinct(VisitaWeb.id_visitante)).label("visitantes"),
-            )
-        )
-        if f_inicio:
-            q_dias = q_dias.filter(VisitaWeb.fecha_inicio >= f_inicio)
-        if f_fin:
-            q_dias = q_dias.filter(VisitaWeb.fecha_inicio <= f_fin)
-
-        filas_dias = q_dias.group_by(func.cast(VisitaWeb.fecha_inicio, db.Date)).order_by(func.cast(VisitaWeb.fecha_inicio, db.Date).asc()).all()
-
-        visitas_por_dia = [
-            {
-                "fecha": fila.fecha.strftime("%Y-%m-%d") if fila.fecha else "",
-                "visitas": fila.visitas,
-                "visitantes": fila.visitantes,
-            }
-            for fila in filas_dias
-        ]
+        m = KpiService.get_landing_metrics(f_inicio, f_fin, periodo_label)
 
         # Formularios recientes (últimos 15)
         recientes = (
@@ -861,30 +777,30 @@ def obtener_estadisticas_landing():
             "success": True,
             "periodo": periodo_label,
             "resumen": {
-                # Indicadores Prompt 18
-                "visitas_landing": visitas_landing,
-                "visitantes_landing": visitantes_landing,
-                "visualizaciones_carta": visualizaciones_carta,
-                "visitantes_carta": visitantes_carta,
-                "formularios": formularios,
-                "leads": leads,
-                "conversion": conversion,
+                # Indicadores Prompt 18 y 19
+                "visitas_landing": m["visitas_landing"],
+                "visitantes_landing": m["visitantes_landing"],
+                "visualizaciones_carta": m["visualizaciones_carta"],
+                "visitantes_carta": m["visitantes_carta"],
+                "formularios": m["formularios"],
+                "leads": m["leads"],
+                "conversion": m["conversion"],
                 # Compatibilidad
-                "total_visitas": visitas_landing,
-                "visitantes_unicos": visitantes_landing,
-                "clics_carta": clics_carta,
-                "visitas_carta": visualizaciones_carta,
-                "formularios_exitosos": formularios,
-                "leads_nuevos": leads,
-                "tasa_conversion": conversion,
+                "total_visitas": m["visitas_landing"],
+                "visitantes_unicos": m["visitantes_landing"],
+                "clics_carta": m["clics_carta"],
+                "visitas_carta": m["visualizaciones_carta"],
+                "formularios_exitosos": m["formularios"],
+                "leads_nuevos": m["leads"],
+                "tasa_conversion": m["conversion"],
                 "conversion_detalle": {
-                    "numerador_leads": leads,
-                    "denominador_visitantes": visitantes_landing,
-                    "resultado_tasa": conversion,
+                    "numerador_leads": m["leads"],
+                    "denominador_visitantes": m["visitantes_landing"],
+                    "resultado_tasa": m["conversion"],
                     "periodo": periodo_label,
                 },
             },
-            "visitas_por_dia": visitas_por_dia,
+            "visitas_por_dia": m["visitas_por_dia"],
             "formularios_recientes": formularios_recientes,
         }), 200
 

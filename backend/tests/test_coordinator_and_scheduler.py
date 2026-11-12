@@ -26,8 +26,10 @@ from app.services.sync_scheduler import (
 
 
 @pytest.fixture(autouse=True)
-def cleanup_scheduler_state():
+def cleanup_scheduler_state(monkeypatch):
     """Garantiza estado limpio del scheduler antes y después de cada prueba."""
+    monkeypatch.setenv("SCHEDULER_STANDALONE", "false")
+    monkeypatch.setenv("META_SYNC_SCHEDULER_EMBEDDED", "true")
     SyncSchedulerService.reset_for_testing()
     yield
     SyncSchedulerService.reset_for_testing()

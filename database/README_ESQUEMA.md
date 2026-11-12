@@ -151,6 +151,9 @@ Alberga las 146 presentaciones exactas con gramajes, botellas y precios reales.
 Ejecutar en orden:
 1. `database/04_MIGRACION_CARTA_FLEXIBLE.sql`: Crea las nuevas tablas y aplica cambios aditivos no destructivos.
 2. `database/05_CARGAR_CATALOGO_REAL.sql`: Carga y reconcilia idempotentemente los 120 productos y 146 presentaciones.
+3. `database/06_LIMPIEZA_PRUEBAS_CONFIRMADAS.sql`: Limpieza segura de datos sintéticos de pruebas automatizadas.
+4. `database/07_MIGRACION_GASTO_ANUNCIO.sql`: Migración aditiva para soporte de gastos académicos simulados y vista compatible.
+5. `database/seed_gastos_academicos.sql`: Carga de gasto publicitario simulado etiquetado como `SIMULADO_ACADEMICO`.
 
 ### En una instalación desde cero (Entorno nuevo):
 Ejecutar en orden:
@@ -158,3 +161,29 @@ Ejecutar en orden:
 2. `database/02_LLENAR_BUYER_FINAL.sql`: Puebla las plataformas, segmentos y campañas iniciales.
 3. `database/03_CREAR_RESPUESTA_AUTOMATICA.sql`: Puebla las reglas de respuesta automática.
 4. `database/05_CARGAR_CATALOGO_REAL.sql`: Carga los 120 productos y 146 presentaciones reales.
+5. `database/07_MIGRACION_GASTO_ANUNCIO.sql`: Aplica la estructura aditiva de gastos publicitarios.
+6. `database/seed_gastos_academicos.sql`: Carga los presupuestos académicos de prueba.
+
+---
+
+## 6. Evolución del Módulo de Marketing y Gastos Publicitarios (Prompt 19)
+
+### 6.1. `dbo.gasto_anuncio_diario` (Evolución Aditiva)
+Permite registrar tanto gastos reales de anuncios de Meta Ads como inversiones simuladas para cálculo de KPIs académicos:
+
+| Columna | Tipo | Nulo | Descripción |
+| :--- | :--- | :--- | :--- |
+| `id_gasto` | `INT IDENTITY(1,1)` | NO | **PK**. Identificador del registro diario de gasto. |
+| `id_anuncio` | `INT` | SÍ | **FK** -> `dbo.anuncio(id_anuncio)`. Nullable para permitir imputación directa a campaña. |
+| `id_campana` | `INT` | SÍ | **FK** -> `dbo.campana(id_campana)`. Vinculación directa con la campaña. |
+| `id_plataforma` | `INT` | SÍ | **FK** -> `dbo.plataforma(id_plataforma)`. Canal publicitario (1=Facebook, 2=Instagram). |
+| `fecha_gasto` | `DATE` | NO | Fecha del devengo del gasto publicitario. |
+| `gasto` | `DECIMAL(10,2)` | NO | Monto invertido en moneda local. |
+| `moneda` | `VARCHAR(3)` | NO | Código ISO de moneda (`PEN`). |
+| `origen_dato` | `VARCHAR(30)` | NO | Procedencia (`META_ADS_API`, `SIMULADO_ACADEMICO`, `MANUAL`). |
+| `es_simulado` | `BIT` | NO | 1 = Inversión académica para cálculo de CPA sin alterar métricas operativas. |
+| `observacion` | `NVARCHAR(255)` | SÍ | Glosa descriptiva del gasto. |
+| `fecha_creacion`| `DATETIME` | NO | Marca de tiempo de registro. |
+
+### 6.2. Vista de Compatibilidad `dbo.gasto_anuncio`
+Facilita la consulta unificada de gastos y presupuestos diarios tanto a nivel de anuncio individual como de campaña o plataforma.
