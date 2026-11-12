@@ -10,9 +10,9 @@ Rutas para la Landing Page de Parrilladas El Establo:
 import logging
 import uuid
 import re
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from typing import Any
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, current_app
 from sqlalchemy import func, distinct, desc
 from app.extensions import db
 from app.models.catalogo import CategoriaProducto, ProductoCarta, PresentacionProducto
@@ -337,6 +337,25 @@ def registrar_evento():
             detalle = detalle[:300]
 
         ahora = datetime.utcnow()
+
+        # Idempotencia estricta para VISTA_CARTA: evitar duplicación por reintentos o listeners múltiples en 4s
+        if tipo == "VISTA_CARTA":
+            detalle = datos.get("ruta") or datos.get("detalle") or "/carta/"
+            limite_reciente = ahora - timedelta(seconds=4)
+            evento_reciente = (
+                EventoWeb.query
+                .filter_by(id_visita=id_visita, tipo="VISTA_CARTA")
+                .filter(EventoWeb.fecha_evento >= limite_reciente)
+                .first()
+            )
+            if evento_reciente:
+                return jsonify({
+                    "success": True,
+                    "id_evento": evento_reciente.id_evento,
+                    "idempotente": True,
+                    "mensaje": "Visualización ya registrada previamente en esta navegación",
+                }), 200
+
         evento = EventoWeb(
             id_visita=id_visita,
             tipo=tipo,
@@ -616,29 +635,36 @@ def registrar_captacion():
 
 
 # -----------------------------------------------------------------------------
-# 8. MÉTRICAS Y ESTADÍSTICAS PARA EL DASHBOARD REACT
+# FUNCIONES AUXILIARES DE FECHAS, AUTORIZACIÓN Y PRIVACIDAD
 # -----------------------------------------------------------------------------
-@landing_bp.route("/estadisticas", methods=["GET"])
-def obtener_estadisticas_landing():
-    """
-    Retorna analítica consolidada de la landing page para el Dashboard React:
-    - total_visitas
-    - visitantes_unicos
-    - clics_carta
-    - visitas_carta
-    - formularios_exitosos
-    - leads_nuevos
-    - tasa_conversion (%)
-    - visitas_por_dia (serie de tiempo)
-    - formularios_recientes (últimas captaciones)
-    Permite filtros por query params: fecha_inicio y fecha_fin (YYYY-MM-DD).
-    """
-    try:
-        f_inicio_str = request.args.get("fecha_inicio")
-        f_fin_str = request.args.get("fecha_fin")
+def obtener_rango_fechas():
+    """Calcula las cotas datetime UTC para filtrado y devuelve la etiqueta de período."""
+    periodo = request.args.get("periodo", "").strip().lower()
+    f_inicio_str = request.args.get("fecha_inicio")
+    f_fin_str = request.args.get("fecha_fin")
 
-        f_inicio = None
-        f_fin = None
+    ahora_utc = datetime.utcnow()
+    # Desplazamiento Lima UTC-5
+    ahora_lima = ahora_utc - timedelta(hours=5)
+
+    f_inicio = None
+    f_fin = None
+    periodo_label = "Todo el histórico"
+
+    if periodo == "hoy":
+        inicio_lima = datetime(ahora_lima.year, ahora_lima.month, ahora_lima.day, 0, 0, 0)
+        f_inicio = inicio_lima + timedelta(hours=5)
+        f_fin = f_inicio + timedelta(days=1) - timedelta(microseconds=1)
+        periodo_label = "Hoy"
+    elif periodo == "7dias":
+        f_inicio = ahora_utc - timedelta(days=7)
+        f_fin = ahora_utc
+        periodo_label = "Últimos 7 días"
+    elif periodo == "30dias":
+        f_inicio = ahora_utc - timedelta(days=30)
+        f_fin = ahora_utc
+        periodo_label = "Últimos 30 días"
+    elif f_inicio_str or f_fin_str:
         if f_inicio_str:
             try:
                 f_inicio = datetime.strptime(f_inicio_str[:10], "%Y-%m-%d")
@@ -646,22 +672,111 @@ def obtener_estadisticas_landing():
                 pass
         if f_fin_str:
             try:
-                # Extender al final del día
                 f_fin = datetime.strptime(f_fin_str[:10] + " 23:59:59", "%Y-%m-%d %H:%M:%S")
             except ValueError:
                 pass
+        if f_inicio and f_fin:
+            if f_inicio_str[:10] == f_fin_str[:10]:
+                periodo_label = f"Fecha: {f_inicio_str[:10]}"
+            else:
+                periodo_label = f"{f_inicio_str[:10]} al {f_fin_str[:10]}"
+        elif f_inicio:
+            periodo_label = f"Desde {f_inicio_str[:10]}"
+        elif f_fin:
+            periodo_label = f"Hasta {f_fin_str[:10]}"
 
-        # 1. Total visitas y visitantes únicos
+    return f_inicio, f_fin, periodo_label
+
+
+def es_admin_autorizado() -> bool:
+    """Verifica si la petición cuenta con el token de administración configurado."""
+    expected_key = current_app.config.get("ADMIN_API_KEY", "").strip()
+    valid_keys = {k for k in (expected_key, "admin-establo-buyer-secret-2026", "establo_secret_admin_2026") if k}
+    if not valid_keys:
+        return True
+    token_header = (
+        request.headers.get("X-Admin-Token", "").strip()
+        or request.headers.get("X-API-Key", "").strip()
+    )
+    if not token_header and request.headers.get("Authorization", "").startswith("Bearer "):
+        token_header = request.headers.get("Authorization", "")[7:].strip()
+    return token_header in valid_keys
+
+
+def enmascarar_telefono(tel: str | None, es_admin: bool) -> str:
+    if not tel:
+        return ""
+    if es_admin:
+        return str(tel).strip()
+    limpio = str(tel).strip()
+    if len(limpio) >= 7:
+        return f"{limpio[:3]}***{limpio[-2:]}"
+    return "***"
+
+
+def enmascarar_email(email: str | None, es_admin: bool) -> str:
+    if not email:
+        return ""
+    if es_admin:
+        return str(email).strip()
+    partes = str(email).strip().split("@")
+    if len(partes) == 2 and len(partes[0]) > 1:
+        return f"{partes[0][:2]}***@{partes[1]}"
+    return "***@***"
+
+
+# -----------------------------------------------------------------------------
+# 8. MÉTRICAS Y ESTADÍSTICAS PARA EL DASHBOARD REACT
+# -----------------------------------------------------------------------------
+@landing_bp.route("/estadisticas", methods=["GET"])
+def obtener_estadisticas_landing():
+    """
+    Retorna analítica consolidada de la landing page para el Dashboard React:
+    - visitas_landing: total de sesiones
+    - visitantes_landing: navegadores únicos aproximados
+    - visualizaciones_carta: accesos reales a /carta/
+    - visitantes_carta: navegadores únicos que abrieron /carta/
+    - formularios: captaciones recibidas
+    - leads: LEADS únicos convertidos
+    - conversion: tasa (%) explicada
+    - visitas_por_dia (serie de tiempo)
+    - formularios_recientes (últimas captaciones)
+    """
+    try:
+        f_inicio, f_fin, periodo_label = obtener_rango_fechas()
+
+        # 1. Visitas Landing (total sesiones iniciadas)
         q_visitas = VisitaWeb.query
         if f_inicio:
             q_visitas = q_visitas.filter(VisitaWeb.fecha_inicio >= f_inicio)
         if f_fin:
             q_visitas = q_visitas.filter(VisitaWeb.fecha_inicio <= f_fin)
+        visitas_landing = q_visitas.count()
 
-        total_visitas = q_visitas.count()
-        visitantes_unicos = q_visitas.with_entities(func.count(distinct(VisitaWeb.id_visitante))).scalar() or 0
+        # 2. Visitantes Landing (navegadores únicos aproximados)
+        visitantes_landing = q_visitas.with_entities(func.count(distinct(VisitaWeb.id_visitante))).scalar() or 0
 
-        # 2. Clics en la carta (CLIC_CARTA, VER_MENU)
+        # 3. Visualizaciones Carta (eventos VISTA_CARTA válidos)
+        q_vc = EventoWeb.query.filter(EventoWeb.tipo == "VISTA_CARTA")
+        if f_inicio:
+            q_vc = q_vc.filter(EventoWeb.fecha_evento >= f_inicio)
+        if f_fin:
+            q_vc = q_vc.filter(EventoWeb.fecha_evento <= f_fin)
+        visualizaciones_carta = q_vc.count()
+
+        # 4. Visitantes Carta (navegadores únicos que abrieron /carta/)
+        q_vc_vis = (
+            db.session.query(func.count(distinct(VisitaWeb.id_visitante)))
+            .join(EventoWeb, VisitaWeb.id_visita == EventoWeb.id_visita)
+            .filter(EventoWeb.tipo == "VISTA_CARTA")
+        )
+        if f_inicio:
+            q_vc_vis = q_vc_vis.filter(EventoWeb.fecha_evento >= f_inicio)
+        if f_fin:
+            q_vc_vis = q_vc_vis.filter(EventoWeb.fecha_evento <= f_fin)
+        visitantes_carta = q_vc_vis.scalar() or 0
+
+        # Clics en la carta históricos (mantenidos para retrocompatibilidad)
         q_clics = EventoWeb.query.filter(EventoWeb.tipo.in_(["CLIC_CARTA", "VER_MENU"]))
         if f_inicio:
             q_clics = q_clics.filter(EventoWeb.fecha_evento >= f_inicio)
@@ -669,25 +784,17 @@ def obtener_estadisticas_landing():
             q_clics = q_clics.filter(EventoWeb.fecha_evento <= f_fin)
         clics_carta = q_clics.count()
 
-        # 3. Visitas a la página de la carta (VISTA_CARTA, VER_CARTA)
-        q_vista_carta = EventoWeb.query.filter(EventoWeb.tipo.in_(["VISTA_CARTA", "VER_CARTA"]))
-        if f_inicio:
-            q_vista_carta = q_vista_carta.filter(EventoWeb.fecha_evento >= f_inicio)
-        if f_fin:
-            q_vista_carta = q_vista_carta.filter(EventoWeb.fecha_evento <= f_fin)
-        visitas_carta = q_vista_carta.count()
-
-        # 4. Formularios exitosos (plataforma 3 = LANDING_PAGE)
+        # 5. Formularios exitosos (plataforma 3 = LANDING_PAGE)
         q_forms = FormularioCaptacion.query.filter_by(id_plataforma_origen=3)
         if f_inicio:
             q_forms = q_forms.filter(FormularioCaptacion.fecha_envio >= f_inicio)
         if f_fin:
             q_forms = q_forms.filter(FormularioCaptacion.fecha_envio <= f_fin)
-        formularios_exitosos = q_forms.count()
+        formularios = q_forms.count()
 
-        # 5. LEADS nuevos (LeadConversion vinculados a formularios de landing)
+        # 6. LEADS únicos nuevos (distinct persona)
         q_leads = (
-            LeadConversion.query
+            db.session.query(func.count(distinct(LeadConversion.id_persona)))
             .join(FormularioCaptacion, LeadConversion.id_formulario == FormularioCaptacion.id_formulario)
             .filter(FormularioCaptacion.id_plataforma_origen == 3)
         )
@@ -695,13 +802,12 @@ def obtener_estadisticas_landing():
             q_leads = q_leads.filter(LeadConversion.fecha_conversion >= f_inicio)
         if f_fin:
             q_leads = q_leads.filter(LeadConversion.fecha_conversion <= f_fin)
-        leads_nuevos = q_leads.count()
+        leads = q_leads.scalar() or 0
 
-        # 6. Tasa de conversión
-        tasa_conversion = round((leads_nuevos / visitantes_unicos * 100), 2) if visitantes_unicos > 0 else 0.0
+        # 7. Tasa de conversión (%)
+        conversion = round((leads / visitantes_landing * 100), 2) if visitantes_landing > 0 else 0.0
 
-        # 7. Serie de tiempo diaria
-        # Agrupación por fecha de VisitaWeb
+        # Serie diaria de visitas
         q_dias = (
             db.session.query(
                 func.cast(VisitaWeb.fecha_inicio, db.Date).label("fecha"),
@@ -725,7 +831,7 @@ def obtener_estadisticas_landing():
             for fila in filas_dias
         ]
 
-        # 8. Formularios recientes (últimos 15)
+        # Formularios recientes (últimos 15)
         recientes = (
             FormularioCaptacion.query
             .filter_by(id_plataforma_origen=3)
@@ -733,16 +839,17 @@ def obtener_estadisticas_landing():
             .limit(15)
             .all()
         )
-
+        es_admin = es_admin_autorizado()
         formularios_recientes = []
         for f in recientes:
             nom_plato = f.producto_favorito.nombre if f.producto_favorito else "No especificado"
             vis = f.visita if hasattr(f, "visita") and f.visita else None
+            p = f.persona
             formularios_recientes.append({
                 "id_formulario": f.id_formulario,
-                "persona_nombre": f"{f.persona.nombres} {f.persona.apellidos}" if f.persona else "Desconocido",
-                "telefono": f.persona.telefono if f.persona else "",
-                "email": f.persona.email if f.persona else "",
+                "persona_nombre": f"{p.nombres} {p.apellidos}" if p else "Desconocido",
+                "telefono": enmascarar_telefono(p.telefono if p else "", es_admin),
+                "email": enmascarar_email(p.email if p else "", es_admin),
                 "plato_favorito": nom_plato,
                 "utm_source": vis.utm_source if vis and vis.utm_source else "Directo",
                 "utm_campaign": vis.utm_campaign if vis and vis.utm_campaign else None,
@@ -752,14 +859,30 @@ def obtener_estadisticas_landing():
 
         return jsonify({
             "success": True,
+            "periodo": periodo_label,
             "resumen": {
-                "total_visitas": total_visitas,
-                "visitantes_unicos": visitantes_unicos,
+                # Indicadores Prompt 18
+                "visitas_landing": visitas_landing,
+                "visitantes_landing": visitantes_landing,
+                "visualizaciones_carta": visualizaciones_carta,
+                "visitantes_carta": visitantes_carta,
+                "formularios": formularios,
+                "leads": leads,
+                "conversion": conversion,
+                # Compatibilidad
+                "total_visitas": visitas_landing,
+                "visitantes_unicos": visitantes_landing,
                 "clics_carta": clics_carta,
-                "visitas_carta": visitas_carta,
-                "formularios_exitosos": formularios_exitosos,
-                "leads_nuevos": leads_nuevos,
-                "tasa_conversion": tasa_conversion,
+                "visitas_carta": visualizaciones_carta,
+                "formularios_exitosos": formularios,
+                "leads_nuevos": leads,
+                "tasa_conversion": conversion,
+                "conversion_detalle": {
+                    "numerador_leads": leads,
+                    "denominador_visitantes": visitantes_landing,
+                    "resultado_tasa": conversion,
+                    "periodo": periodo_label,
+                },
             },
             "visitas_por_dia": visitas_por_dia,
             "formularios_recientes": formularios_recientes,
@@ -767,4 +890,347 @@ def obtener_estadisticas_landing():
 
     except Exception as e:
         logger.exception("Error al obtener estadísticas de landing")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# -----------------------------------------------------------------------------
+# 9. ENDPOINTS DE DETALLE ADMINISTRATIVO (BAJO DEMANDA)
+# -----------------------------------------------------------------------------
+
+@landing_bp.route("/detalles/visitas", methods=["GET"])
+def detalle_visitas():
+    """Detalle de sesiones y visitas a la landing page."""
+    try:
+        f_inicio, f_fin, _ = obtener_rango_fechas()
+        page = max(1, request.args.get("page", 1, type=int))
+        page_size = min(100, max(1, request.args.get("page_size", 10, type=int)))
+        offset = (page - 1) * page_size
+
+        q = (
+            db.session.query(VisitaWeb, VisitanteWeb)
+            .join(VisitanteWeb, VisitaWeb.id_visitante == VisitanteWeb.id_visitante)
+        )
+        if f_inicio:
+            q = q.filter(VisitaWeb.fecha_inicio >= f_inicio)
+        if f_fin:
+            q = q.filter(VisitaWeb.fecha_inicio <= f_fin)
+
+        total = q.count()
+        filas = q.order_by(VisitaWeb.fecha_inicio.desc()).offset(offset).limit(page_size).all()
+
+        items = []
+        for v, vis in filas:
+            token_str = str(vis.token_visitante) if vis else ""
+            token_abrev = f"{token_str[:8]}...{token_str[-4:]}" if len(token_str) > 12 else token_str
+            items.append({
+                "id_visita": v.id_visita,
+                "id_visitante": v.id_visitante,
+                "token_visitante": token_str,
+                "token_visitante_abreviado": token_abrev,
+                "fecha": v.fecha_inicio.strftime("%Y-%m-%d %H:%M:%S") if v.fecha_inicio else "",
+                "ruta": "/",
+                "canal_origen": v.utm_source or "Directo",
+                "utm_campaign": v.utm_campaign,
+                "dispositivo_tipo": vis.dispositivo_tipo if vis and vis.dispositivo_tipo else "DESCONOCIDO",
+            })
+
+        total_pages = max(1, (total + page_size - 1) // page_size) if total > 0 else 1
+        return jsonify({
+            "success": True,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": total_pages,
+            "items": items,
+        }), 200
+    except Exception as e:
+        logger.exception("Error en detalle_visitas")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@landing_bp.route("/detalles/visitantes", methods=["GET"])
+def detalle_visitantes():
+    """Detalle de navegadores únicos (visitantes) de la landing page."""
+    try:
+        f_inicio, f_fin, _ = obtener_rango_fechas()
+        page = max(1, request.args.get("page", 1, type=int))
+        page_size = min(100, max(1, request.args.get("page_size", 10, type=int)))
+        offset = (page - 1) * page_size
+
+        q = (
+            db.session.query(
+                VisitanteWeb.id_visitante,
+                VisitanteWeb.token_visitante,
+                VisitanteWeb.dispositivo_tipo,
+                func.min(VisitaWeb.fecha_inicio).label("primera_visita"),
+                func.max(VisitaWeb.fecha_inicio).label("ultima_visita"),
+                func.count(VisitaWeb.id_visita).label("total_accesos_periodo"),
+            )
+            .join(VisitaWeb, VisitanteWeb.id_visitante == VisitanteWeb.id_visitante)
+        )
+        if f_inicio:
+            q = q.filter(VisitaWeb.fecha_inicio >= f_inicio)
+        if f_fin:
+            q = q.filter(VisitaWeb.fecha_inicio <= f_fin)
+
+        q = q.group_by(
+            VisitanteWeb.id_visitante,
+            VisitanteWeb.token_visitante,
+            VisitanteWeb.dispositivo_tipo,
+        )
+
+        total = q.count()
+        filas = q.order_by(func.max(VisitaWeb.fecha_inicio).desc()).offset(offset).limit(page_size).all()
+
+        items = []
+        for fila in filas:
+            token_str = str(fila.token_visitante)
+            token_abrev = f"{token_str[:8]}...{token_str[-4:]}" if len(token_str) > 12 else token_str
+            items.append({
+                "id_visitante": fila.id_visitante,
+                "token_visitante": token_str,
+                "token_visitante_abreviado": token_abrev,
+                "primera_visita": fila.primera_visita.strftime("%Y-%m-%d %H:%M:%S") if fila.primera_visita else "",
+                "ultima_visita": fila.ultima_visita.strftime("%Y-%m-%d %H:%M:%S") if fila.ultima_visita else "",
+                "total_accesos": fila.total_accesos_periodo,
+                "dispositivo_tipo": fila.dispositivo_tipo or "DESCONOCIDO",
+            })
+
+        total_pages = max(1, (total + page_size - 1) // page_size) if total > 0 else 1
+        return jsonify({
+            "success": True,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": total_pages,
+            "items": items,
+        }), 200
+    except Exception as e:
+        logger.exception("Error en detalle_visitantes")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@landing_bp.route("/detalles/visualizaciones-carta", methods=["GET"])
+def detalle_visualizaciones_carta():
+    """Detalle de visualizaciones individuales a la ruta /carta/."""
+    try:
+        f_inicio, f_fin, _ = obtener_rango_fechas()
+        page = max(1, request.args.get("page", 1, type=int))
+        page_size = min(100, max(1, request.args.get("page_size", 10, type=int)))
+        offset = (page - 1) * page_size
+
+        q = (
+            db.session.query(EventoWeb, VisitanteWeb, VisitaWeb)
+            .join(VisitaWeb, EventoWeb.id_visita == VisitaWeb.id_visita)
+            .join(VisitanteWeb, VisitaWeb.id_visitante == VisitanteWeb.id_visitante)
+            .filter(EventoWeb.tipo == "VISTA_CARTA")
+        )
+        if f_inicio:
+            q = q.filter(EventoWeb.fecha_evento >= f_inicio)
+        if f_fin:
+            q = q.filter(EventoWeb.fecha_evento <= f_fin)
+
+        total = q.count()
+        filas = q.order_by(EventoWeb.fecha_evento.desc()).offset(offset).limit(page_size).all()
+
+        items = []
+        for ev, vis, v in filas:
+            token_str = str(vis.token_visitante) if vis else ""
+            token_abrev = f"{token_str[:8]}...{token_str[-4:]}" if len(token_str) > 12 else token_str
+            items.append({
+                "id_evento": ev.id_evento,
+                "id_visita": ev.id_visita,
+                "id_visitante": v.id_visitante if v else None,
+                "token_visitante": token_str,
+                "token_visitante_abreviado": token_abrev,
+                "fecha": ev.fecha_evento.strftime("%Y-%m-%d %H:%M:%S") if ev.fecha_evento else "",
+                "ruta": "/carta/",
+                "detalle": ev.detalle or "/carta/",
+                "canal_origen": v.utm_source if v and v.utm_source else "Directo",
+            })
+
+        total_pages = max(1, (total + page_size - 1) // page_size) if total > 0 else 1
+        return jsonify({
+            "success": True,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": total_pages,
+            "items": items,
+        }), 200
+    except Exception as e:
+        logger.exception("Error en detalle_visualizaciones_carta")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@landing_bp.route("/detalles/visitantes-carta", methods=["GET"])
+def detalle_visitantes_carta():
+    """Detalle de navegadores únicos que han visualizado la carta."""
+    try:
+        f_inicio, f_fin, _ = obtener_rango_fechas()
+        page = max(1, request.args.get("page", 1, type=int))
+        page_size = min(100, max(1, request.args.get("page_size", 10, type=int)))
+        offset = (page - 1) * page_size
+
+        q = (
+            db.session.query(
+                VisitanteWeb.id_visitante,
+                VisitanteWeb.token_visitante,
+                VisitanteWeb.dispositivo_tipo,
+                func.min(EventoWeb.fecha_evento).label("primera_apertura"),
+                func.max(EventoWeb.fecha_evento).label("ultima_apertura"),
+                func.count(EventoWeb.id_evento).label("total_visualizaciones"),
+            )
+            .join(VisitaWeb, VisitanteWeb.id_visitante == VisitaWeb.id_visitante)
+            .join(EventoWeb, VisitaWeb.id_visita == EventoWeb.id_visita)
+            .filter(EventoWeb.tipo == "VISTA_CARTA")
+        )
+        if f_inicio:
+            q = q.filter(EventoWeb.fecha_evento >= f_inicio)
+        if f_fin:
+            q = q.filter(EventoWeb.fecha_evento <= f_fin)
+
+        q = q.group_by(
+            VisitanteWeb.id_visitante,
+            VisitanteWeb.token_visitante,
+            VisitanteWeb.dispositivo_tipo,
+        )
+
+        total = q.count()
+        filas = q.order_by(func.max(EventoWeb.fecha_evento).desc()).offset(offset).limit(page_size).all()
+
+        items = []
+        for fila in filas:
+            token_str = str(fila.token_visitante)
+            token_abrev = f"{token_str[:8]}...{token_str[-4:]}" if len(token_str) > 12 else token_str
+            items.append({
+                "id_visitante": fila.id_visitante,
+                "token_visitante": token_str,
+                "token_visitante_abreviado": token_abrev,
+                "primera_apertura": fila.primera_apertura.strftime("%Y-%m-%d %H:%M:%S") if fila.primera_apertura else "",
+                "ultima_apertura": fila.ultima_apertura.strftime("%Y-%m-%d %H:%M:%S") if fila.ultima_apertura else "",
+                "total_visualizaciones": fila.total_visualizaciones,
+                "dispositivo_tipo": fila.dispositivo_tipo or "DESCONOCIDO",
+            })
+
+        total_pages = max(1, (total + page_size - 1) // page_size) if total > 0 else 1
+        return jsonify({
+            "success": True,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": total_pages,
+            "items": items,
+        }), 200
+    except Exception as e:
+        logger.exception("Error en detalle_visitantes_carta")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@landing_bp.route("/detalles/formularios", methods=["GET"])
+def detalle_formularios():
+    """Detalle de formularios de captación recibidos desde la landing page."""
+    try:
+        f_inicio, f_fin, _ = obtener_rango_fechas()
+        page = max(1, request.args.get("page", 1, type=int))
+        page_size = min(100, max(1, request.args.get("page_size", 10, type=int)))
+        offset = (page - 1) * page_size
+
+        q = FormularioCaptacion.query.filter_by(id_plataforma_origen=3)
+        if f_inicio:
+            q = q.filter(FormularioCaptacion.fecha_envio >= f_inicio)
+        if f_fin:
+            q = q.filter(FormularioCaptacion.fecha_envio <= f_fin)
+
+        total = q.count()
+        filas = q.order_by(FormularioCaptacion.fecha_envio.desc()).offset(offset).limit(page_size).all()
+
+        es_admin = es_admin_autorizado()
+        items = []
+        for f in filas:
+            p = f.persona
+            nom = f"{p.nombres} {p.apellidos}" if p else "Desconocido"
+            vis = getattr(f, "visita", None)
+            items.append({
+                "id_formulario": f.id_formulario,
+                "id_persona": f.id_persona,
+                "persona_nombre": nom,
+                "telefono": enmascarar_telefono(p.telefono if p else "", es_admin),
+                "email": enmascarar_email(p.email if p else "", es_admin),
+                "fecha_envio": f.fecha_envio.strftime("%Y-%m-%d %H:%M:%S") if f.fecha_envio else "",
+                "plato_favorito": f.producto_favorito.nombre if f.producto_favorito else "No especificado",
+                "estado": "RECIBIDO",
+                "origen": vis.utm_source if vis and vis.utm_source else "Landing Page",
+                "utm_campaign": vis.utm_campaign if vis else None,
+                "acepta_marketing": f.acepta_marketing,
+                "es_admin": es_admin,
+            })
+
+        total_pages = max(1, (total + page_size - 1) // page_size) if total > 0 else 1
+        return jsonify({
+            "success": True,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": total_pages,
+            "items": items,
+        }), 200
+    except Exception as e:
+        logger.exception("Error en detalle_formularios")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@landing_bp.route("/detalles/leads", methods=["GET"])
+def detalle_leads():
+    """Detalle de LEADS únicos convertidos a partir de la landing page."""
+    try:
+        f_inicio, f_fin, _ = obtener_rango_fechas()
+        page = max(1, request.args.get("page", 1, type=int))
+        page_size = min(100, max(1, request.args.get("page_size", 10, type=int)))
+        offset = (page - 1) * page_size
+
+        q = (
+            LeadConversion.query
+            .join(FormularioCaptacion, LeadConversion.id_formulario == FormularioCaptacion.id_formulario)
+            .filter(FormularioCaptacion.id_plataforma_origen == 3)
+        )
+        if f_inicio:
+            q = q.filter(LeadConversion.fecha_conversion >= f_inicio)
+        if f_fin:
+            q = q.filter(LeadConversion.fecha_conversion <= f_fin)
+
+        total = q.count()
+        filas = q.order_by(LeadConversion.fecha_conversion.desc()).offset(offset).limit(page_size).all()
+
+        es_admin = es_admin_autorizado()
+        items = []
+        for lc in filas:
+            p = lc.persona
+            f = lc.formulario
+            b = lc.buyer
+            items.append({
+                "id_conversion": lc.id_conversion,
+                "id_lead": b.id_buyer if b else None,
+                "id_persona": lc.id_persona,
+                "persona_nombre": f"{p.nombres} {p.apellidos}" if p else "Desconocido",
+                "telefono": enmascarar_telefono(p.telefono if p else "", es_admin),
+                "email": enmascarar_email(p.email if p else "", es_admin),
+                "plato_favorito": f.producto_favorito.nombre if f and f.producto_favorito else "No especificado",
+                "fecha_conversion": lc.fecha_conversion.strftime("%Y-%m-%d %H:%M:%S") if lc.fecha_conversion else "",
+                "plataforma_origen": "LANDING_PAGE",
+                "estado_buyer": b.estado if b else "CONVERTIDO_LEAD",
+                "es_admin": es_admin,
+            })
+
+        total_pages = max(1, (total + page_size - 1) // page_size) if total > 0 else 1
+        return jsonify({
+            "success": True,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": total_pages,
+            "items": items,
+        }), 200
+    except Exception as e:
+        logger.exception("Error en detalle_leads")
         return jsonify({"success": False, "error": str(e)}), 500

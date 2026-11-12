@@ -36,6 +36,7 @@ class FormularioCaptacion(db.Model):
     plataforma = db.relationship("Plataforma", lazy="joined")
     publicacion = db.relationship("Publicacion", lazy="joined")
     producto_favorito = db.relationship("ProductoCarta", lazy="joined")
+    visita = db.relationship("VisitaWeb", lazy="joined")
 
     def to_dict(self) -> dict[str, Any]:
         return {

@@ -34,12 +34,12 @@ const navItems: NavItem[] = [
   { number: '2', name: 'Facebook', to: '/facebook', icon: Facebook },
   { number: '3', name: 'Instagram', to: '/instagram', icon: Instagram },
   { number: '4', name: 'Comentarios & Intención', to: '/comments', icon: MessageCircle },
-  { number: '5', name: 'BUYERS', to: '/buyers', icon: Users },
-  { number: '6', name: 'Agentes Inteligentes', to: '/agents', icon: Bot },
-  { number: '7', name: 'Auditoría', to: '/audit', icon: ClipboardList },
-  { number: '8', name: 'Configuración', to: '/settings', icon: Settings },
-  { number: '9', name: 'Respuestas automáticas', to: '/auto-replies', icon: MessageSquareReply },
-  { number: '10', name: 'Landing Page', to: '/landing', icon: Globe },
+  { number: '5', name: 'Landing Page', to: '/landing', icon: Globe },
+  { number: '6', name: 'BUYERS', to: '/buyers', icon: Users },
+  { number: '7', name: 'Agentes Inteligentes', to: '/agents', icon: Bot },
+  { number: '8', name: 'Auditoría', to: '/audit', icon: ClipboardList },
+  { number: '9', name: 'Configuración', to: '/settings', icon: Settings },
+  { number: '10', name: 'Respuestas automáticas', to: '/auto-replies', icon: MessageSquareReply },
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
