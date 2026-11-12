@@ -60,4 +60,9 @@ if [ -f "/docker-init/03_cargar_catalogo_real.sql" ]; then
     $SQLCMD -S localhost -U sa -P "$SA_PASS" -C -d buyer -i /docker-init/03_cargar_catalogo_real.sql
 fi
 
+if [ -f "/docker-init/04_migracion_gasto_anuncio.sql" ]; then
+    echo "[SQL Server Init] Aplicando migracion de gasto anuncio 04_migracion_gasto_anuncio.sql..."
+    $SQLCMD -S localhost -U sa -P "$SA_PASS" -C -d buyer -i /docker-init/04_migracion_gasto_anuncio.sql
+fi
+
 echo "[SQL Server Init] Inicializacion y sincronizacion completada exitosamente."
