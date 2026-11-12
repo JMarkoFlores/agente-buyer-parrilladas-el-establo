@@ -18,7 +18,8 @@
         "auth-model": "sqlserver_database"
       },
       "auth-properties": {
-        "userName": "sa"
+        "userName": "sa",
+        "userPassword": "__MSSQL_SA_PASSWORD__"
       }
     }
   },

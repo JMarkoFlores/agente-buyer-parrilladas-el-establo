@@ -3,15 +3,19 @@ set -e
 
 WORKSPACE_DIR="/opt/cloudbeaver/workspace"
 CONFIG_DIR="${WORKSPACE_DIR}/GlobalConfiguration/.dbeaver"
+TEMPLATE="/opt/cloudbeaver-template/data-sources.json"
 
-# Crear ruta de configuracion inicial si el volumen persistente esta vacio
 mkdir -p "${CONFIG_DIR}"
 
-# Sembrar siempre la configuracion global (conexiones compartidas preconfiguradas).
+# Sembrar la configuracion global con la conexion preconfigurada a SQL Server.
 # ponytail: sobrescribe en cada arranque; las conexiones creadas en la UI viven en user-projects.
-if [ -f "/opt/cloudbeaver-template/data-sources.json" ]; then
+if [ -f "${TEMPLATE}" ]; then
     echo "[CloudBeaver Init] Sembrando data-sources.json global con la conexion buyer..."
-    cp /opt/cloudbeaver-template/data-sources.json "${CONFIG_DIR}/data-sources.json"
+    [ -n "${MSSQL_SA_PASSWORD}" ] || echo "[CloudBeaver Init] AVISO: MSSQL_SA_PASSWORD vacia; la conexion pedira contrasena."
+    # Sustitucion en bash, sin sed: la contrasena puede traer ! & / | sin romper nada.
+    while IFS= read -r line; do
+        printf '%s\n' "${line//__MSSQL_SA_PASSWORD__/${MSSQL_SA_PASSWORD}}"
+    done < "${TEMPLATE}" > "${CONFIG_DIR}/data-sources.json"
 fi
 
 # Asegurar permisos correctos en el volumen de trabajo
