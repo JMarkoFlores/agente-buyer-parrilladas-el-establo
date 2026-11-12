@@ -305,57 +305,51 @@ class KpiService:
             q_gasto = q_gasto.filter(GastoAnuncioDiario.fecha <= f_fin.date())
         gasto_simulado = float(q_gasto.scalar() or 0.0)
 
-        # LEADS reales atribuibles a anuncios dentro del mismo período
-        # Se requiere trazabilidad verificable: id_publicacion_origen != NULL
-        # o utm_campaign/utm_source ligado a una campaña publicitaria registrada.
-        q_leads_ad = (
+        # Denominador CPA: Total de LEADS reales obtenidos (personas únicas convertidas a LEAD)
+        # Correspondiente al N° de LEADS reportado en el módulo Landing
+        q_leads_total = (
             db.session.query(LeadConversion.id_persona).distinct()
-            .join(FormularioCaptacion, LeadConversion.id_formulario == FormularioCaptacion.id_formulario)
-            .outerjoin(VisitaWeb, FormularioCaptacion.id_visita == VisitaWeb.id_visita)
-            .filter(
-                ~LeadConversion.id_persona.in_(DEMO_PERSONA_IDS),
-                or_(
-                    FormularioCaptacion.id_publicacion_origen.isnot(None),
-                    VisitaWeb.id_publicacion_origen.isnot(None),
-                    VisitaWeb.utm_campaign.in_(
-                        db.session.query(Campana.meta_campaign_id).filter(Campana.meta_campaign_id.isnot(None))
-                    ),
-                ),
-            )
+            .filter(~LeadConversion.id_persona.in_(DEMO_PERSONA_IDS))
         )
         if f_inicio:
-            q_leads_ad = q_leads_ad.filter(LeadConversion.fecha_conversion >= f_inicio)
+            q_leads_total = q_leads_total.filter(LeadConversion.fecha_conversion >= f_inicio)
         if f_fin:
-            q_leads_ad = q_leads_ad.filter(LeadConversion.fecha_conversion <= f_fin)
-        leads_atribuibles = len(q_leads_ad.all())
+            q_leads_total = q_leads_total.filter(LeadConversion.fecha_conversion <= f_fin)
+        total_leads = len(q_leads_total.all())
 
-        if leads_atribuibles > 0 and gasto_simulado > 0:
-            cpa_valor = round(gasto_simulado / leads_atribuibles, 2)
+        # Cálculo dinámico de CPA: Gasto en anuncios / N° de LEADS
+        if total_leads > 0 and gasto_simulado > 0:
+            cpa_valor = round(gasto_simulado / total_leads, 2)
             cpa_formateado = f"S/ {cpa_valor:.2f}"
             cpa_calculable = True
-            cpa_nota = "Cálculo mixto: Gasto simulado académico / Conversiones reales atribuibles"
-        else:
-            cpa_valor = None
-            cpa_formateado = "No calculable — Sin LEADS atribuibles a anuncios"
-            cpa_calculable = False
             cpa_nota = (
-                "Para este período no existen conversiones con procedencia comprobada desde anuncios pagados. "
-                "Conforme al estándar arquitectónico, no se inventan conversiones para forzar un CPA."
+                f"Fórmula: Gasto en anuncios (S/ {gasto_simulado:.2f}) / N° de LEADS ({total_leads}) = "
+                f"S/ {cpa_valor:.2f} por LEAD. Cálculo dinámico: Presupuesto simulado académico / LEADS reales de SQL Server."
             )
+        elif total_leads == 0:
+            cpa_valor = None
+            cpa_formateado = "No calculable — Sin LEADS"
+            cpa_calculable = False
+            cpa_nota = "El denominador (N° de LEADS) es 0 para el período evaluado."
+        else:
+            cpa_valor = 0.0
+            cpa_formateado = "S/ 0.00"
+            cpa_calculable = True
+            cpa_nota = "Sin gasto publicitario registrado para el período."
 
         kpi_cpa = {
             "codigo": "CPA",
             "nombre": "Costo por Anuncio (CPA / Costo por LEAD)",
-            "formula": "Gasto en anuncios / Número de LEADS obtenidos",
+            "formula": "Gasto en anuncios / N° de LEADS",
             "valor": cpa_valor,
             "valor_formateado": cpa_formateado,
             "numerador": gasto_simulado,
             "numerador_label": "Gasto en anuncios simulado",
-            "denominador": leads_atribuibles,
-            "denominador_label": "LEADS reales atribuibles a anuncios",
+            "denominador": total_leads,
+            "denominador_label": "Número de LEADS obtenidos",
             "unidad": "S/ por LEAD",
             "periodo": periodo_label,
-            "procedencia": "Presupuesto académico en dbo.gasto_anuncio_diario + Conversiones SQL Server",
+            "procedencia": "Presupuesto académico en dbo.gasto_anuncio_diario + LEADS en dbo.lead_conversion",
             "tipo_dato": "MIXTO",
             "etiqueta": "GASTO SIMULADO",
             "calculable": cpa_calculable,
@@ -419,9 +413,9 @@ class KpiService:
 
         # =====================================================================
         # KPI 3 — TASA DE CONVERSIÓN BUYER A LEAD (B1)
-        # B1 = (BUYERS únicos convertidos a LEAD / BUYERS únicos totales) × 100
+        # B1 = (N° de LEADS / Cantidad de BUYERS captados) × 100
         # =====================================================================
-        # Numerador: Personas reales únicas convertidas a LEAD con formulario confirmado
+        # Numerador: Personas reales únicas convertidas a LEAD (coincidente con módulo Landing)
         q_b1_leads = (
             db.session.query(LeadConversion.id_persona).distinct()
             .filter(~LeadConversion.id_persona.in_(DEMO_PERSONA_IDS))
@@ -432,52 +426,52 @@ class KpiService:
             q_b1_leads = q_b1_leads.filter(LeadConversion.fecha_conversion <= f_fin)
         b1_numerador = len(q_b1_leads.all())
 
-        # Denominador: Total de BUYERS únicos multicanal
-        # Incluye:
-        # 1. Prospectos no identificados de Meta (Facebook e Instagram con id_persona IS NULL)
-        # 2. Personas únicas que entraron al funnel y fueron convertidas a LEAD
-        q_meta_buyers = db.session.query(Buyer).filter(
-            ~Buyer.id_buyer.in_(DEMO_BUYER_IDS),
-            Buyer.id_persona.is_(None),
-            Buyer.id_plataforma_origen.in_([1, 2]),
-        )
+        # Denominador: Total de BUYERS captados reportados en el módulo BUYERS (6 reales)
+        q_buyers_totales = db.session.query(Buyer)
+        q_buyers_totales = DataFilterService.apply_real_buyer_filter(q_buyers_totales)
         if f_inicio:
-            q_meta_buyers = q_meta_buyers.filter(Buyer.fecha_primer_contacto >= f_inicio)
+            q_buyers_totales = q_buyers_totales.filter(Buyer.fecha_primer_contacto >= f_inicio)
         if f_fin:
-            q_meta_buyers = q_meta_buyers.filter(Buyer.fecha_primer_contacto <= f_fin)
-        meta_buyers_count = q_meta_buyers.count()
+            q_buyers_totales = q_buyers_totales.filter(Buyer.fecha_primer_contacto <= f_fin)
+        b1_denominador = q_buyers_totales.count()
 
-        b1_denominador = meta_buyers_count + b1_numerador
-
-        if b1_denominador > 0:
+        if b1_denominador > 0 and b1_numerador > 0:
             b1_valor = round((b1_numerador / b1_denominador) * 100.0, 2)
             b1_formateado = f"{b1_valor:.2f}%"
+            ratio_buyers = round(b1_denominador / b1_numerador, 2)
             b1_calculable = True
+            b1_nota = (
+                f"Fórmula: {b1_numerador} LEADS obtenidos / {b1_denominador} BUYERS captados (Módulo BUYERS) = "
+                f"{b1_formateado} (Equivale a 1 LEAD generado por cada {ratio_buyers} BUYERS captados)."
+            )
+        elif b1_denominador > 0 and b1_numerador == 0:
+            b1_valor = 0.0
+            b1_formateado = "0.00%"
+            b1_calculable = True
+            b1_nota = f"0 LEADS obtenidos sobre {b1_denominador} BUYERS captados."
         else:
             b1_valor = None
             b1_formateado = "N/D"
             b1_calculable = False
+            b1_nota = "Sin BUYERS captados para el período evaluado."
 
         kpi_b1 = {
             "codigo": "B1",
             "nombre": "Tasa de Conversión BUYER a LEAD (B1)",
-            "formula": "(BUYERS únicos convertidos a LEAD / BUYERS únicos totales) × 100",
+            "formula": "(N° de LEADS / Cantidad de BUYERS captados) × 100",
             "valor": b1_valor,
             "valor_formateado": b1_formateado,
             "numerador": b1_numerador,
-            "numerador_label": "BUYERS únicos convertidos efectivamente a LEAD",
+            "numerador_label": "N° de LEADS obtenidos (Convertidos)",
             "denominador": b1_denominador,
-            "denominador_label": "BUYERS únicos totales (Meta + Landing)",
+            "denominador_label": "Cantidad de BUYERS captados (Módulo BUYERS)",
             "unidad": "%",
             "periodo": periodo_label,
             "procedencia": "dbo.buyer, dbo.persona, dbo.formulario_captacion, dbo.lead_conversion",
             "tipo_dato": "REAL",
             "etiqueta": "REAL SQL SERVER",
             "calculable": b1_calculable,
-            "observacion": (
-                f"Integración comercial de 3 canales: {meta_buyers_count} prospectos activos de Meta "
-                f"+ {b1_numerador} LEADS únicos convertidos. Numerador <= Denominador garantizado."
-            ),
+            "observacion": b1_nota,
         }
 
         return {

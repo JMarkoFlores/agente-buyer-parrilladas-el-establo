@@ -79,7 +79,12 @@ export const BuyersPage: React.FC = () => {
   // Métricas
   const metrics = useMemo(() => {
     const total = buyers.length;
-    const convertidos = buyers.filter((b) => b.estado === 'CONVERTIDO_LEAD').length;
+    // Personas físicas únicas convertidas a LEAD (coincidente con la métrica LEAD de Landing)
+    const convertidos = new Set(
+      buyers
+        .filter((b) => b.estado === 'CONVERTIDO_LEAD')
+        .map((b) => b.id_persona || b.id_buyer)
+    ).size;
     const fb = buyers.filter((b) => b.plataforma_codigo === 'FACEBOOK').length;
     const ig = buyers.filter((b) => b.plataforma_codigo === 'INSTAGRAM').length;
     const landing = buyers.filter((b) => b.plataforma_codigo === 'LANDING_PAGE').length;
@@ -134,7 +139,7 @@ export const BuyersPage: React.FC = () => {
             <p className="text-2xl font-black text-slate-900 dark:text-slate-100 font-mono mt-0.5">
               {metrics.convertidos}
             </p>
-            <span className="text-[11px] text-slate-400">Prospectos calificados</span>
+            <span className="text-[11px] text-slate-400">Personas calificadas (LEADS)</span>
           </CardContent>
         </Card>
 

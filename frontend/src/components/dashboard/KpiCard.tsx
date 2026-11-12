@@ -49,17 +49,17 @@ export const KpiCard: React.FC<KpiCardProps> = ({
       hover
       className={`border-l-4 ${borderColors[color]} flex flex-col justify-between`}
     >
-      <div className="p-5">
-        <div className="flex items-center justify-between gap-2 mb-2">
-          <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 truncate">
+      <div className="p-4 sm:p-5">
+        <div className="flex items-start justify-between gap-2 mb-2 min-h-[2.5rem]">
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 leading-tight whitespace-normal break-words">
             {title}
           </span>
           <div
-            className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${
+            className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${
               iconColor || bgIconColors[color]
             }`}
           >
-            <Icon className="w-5 h-5" />
+            <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
         </div>
 
