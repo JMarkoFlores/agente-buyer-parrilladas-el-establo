@@ -1,10 +1,10 @@
 {
   "folders": {},
   "connections": {
-    "sqlserver-buyer-db": {
+    "establo-buyer-sqlserver": {
       "provider": "sqlserver",
       "driver": "microsoft",
-      "name": "SQL Server (buyer)",
+      "name": "SQL Server buyer (establo)",
       "description": "Conexion preconfigurada para Parrilladas El Establo - buyer",
       "save-password": true,
       "read-only": false,
