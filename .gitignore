@@ -110,3 +110,6 @@ Icon?
 # Herramientas de IA y Scratchpad Local
 .gemini/
 scratch/
+
+# Configuracion generada por CloudBeaver en runtime (no versionar)
+docker/cloudbeaver/GlobalConfiguration/
