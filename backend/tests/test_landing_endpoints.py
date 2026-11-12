@@ -78,6 +78,15 @@ def test_post_landing_visita_y_evento(client: FlaskClient):
     assert res_evento.status_code == 201
     assert res_evento.get_json()["success"] is True
 
+    # Limpieza inmediata de prueba para prevenir contaminación (Prompt 19)
+    with client.application.app_context():
+        from app.extensions import db
+        from app.models.web import VisitaWeb, EventoWeb, VisitanteWeb
+        EventoWeb.query.filter_by(id_visita=id_visita).delete()
+        VisitaWeb.query.filter_by(id_visita=id_visita).delete()
+        VisitanteWeb.query.filter_by(token_visitante=token_vis).delete()
+        db.session.commit()
+
 
 def test_post_landing_registro_captacion_lead(client: FlaskClient):
     token_vis = str(uuid.uuid4())
@@ -117,6 +126,37 @@ def test_post_landing_registro_captacion_lead(client: FlaskClient):
     assert data["data"]["fase"] == "LEAD"
     assert "id_buyer" in data["data"]
     assert "id_formulario" in data["data"]
+
+    # Limpieza inmediata de prueba para prevenir contaminación (Prompt 19)
+    with client.application.app_context():
+        from app.extensions import db
+        from app.models.persona import Persona, Buyer
+        from app.models.conversion import FormularioCaptacion, LeadConversion, HistorialFases
+        from app.models.web import VisitaWeb, VisitanteWeb, EventoWeb
+
+        valeria = Persona.query.filter_by(email="valeria.castro@test.com").first()
+        if valeria:
+            p_id = valeria.id_persona
+            buyer_ids = [b.id_buyer for b in Buyer.query.filter_by(id_persona=p_id).all()]
+            HistorialFases.query.filter_by(id_persona=p_id).delete(synchronize_session=False)
+            LeadConversion.query.filter_by(id_persona=p_id).delete(synchronize_session=False)
+            FormularioCaptacion.query.filter_by(id_persona=p_id).delete(synchronize_session=False)
+            if buyer_ids:
+                VisitaWeb.query.filter(VisitaWeb.id_buyer.in_(buyer_ids)).update({"id_buyer": None}, synchronize_session=False)
+            Buyer.query.filter_by(id_persona=p_id).delete(synchronize_session=False)
+            VisitanteWeb.query.filter_by(id_persona=p_id).update({"id_persona": None}, synchronize_session=False)
+            Persona.query.filter_by(id_persona=p_id).delete(synchronize_session=False)
+
+        vis = VisitanteWeb.query.filter_by(token_visitante=token_vis).first()
+        if vis:
+            vis_id = vis.id_visitante
+            visita_ids = [v.id_visita for v in VisitaWeb.query.filter_by(id_visitante=vis_id).all()]
+            if visita_ids:
+                EventoWeb.query.filter(EventoWeb.id_visita.in_(visita_ids)).delete(synchronize_session=False)
+                FormularioCaptacion.query.filter(FormularioCaptacion.id_visita.in_(visita_ids)).update({"id_visita": None}, synchronize_session=False)
+                VisitaWeb.query.filter(VisitaWeb.id_visita.in_(visita_ids)).delete(synchronize_session=False)
+            VisitanteWeb.query.filter_by(id_visitante=vis_id).delete(synchronize_session=False)
+        db.session.commit()
 
 
 def test_get_landing_estadisticas(client: FlaskClient):
@@ -161,6 +201,15 @@ def test_vista_carta_idempotency(client: FlaskClient):
     )
     assert res2.status_code == 200
     assert res2.get_json()["idempotente"] is True
+
+    # Limpieza inmediata de prueba para prevenir contaminación (Prompt 19)
+    with client.application.app_context():
+        from app.extensions import db
+        from app.models.web import VisitaWeb, EventoWeb, VisitanteWeb
+        EventoWeb.query.filter_by(id_visita=id_visita).delete()
+        VisitaWeb.query.filter_by(id_visita=id_visita).delete()
+        VisitanteWeb.query.filter_by(token_visitante=token_vis).delete()
+        db.session.commit()
 
 
 def test_get_landing_estadisticas_periodos(client: FlaskClient):

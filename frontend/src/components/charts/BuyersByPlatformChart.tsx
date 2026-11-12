@@ -16,12 +16,14 @@ import { useTheme } from '../../contexts/ThemeContext';
 interface BuyersByPlatformChartProps {
   facebookBuyers: number;
   instagramBuyers: number;
+  landingBuyers?: number;
   demoBuyers?: number;
 }
 
 export const BuyersByPlatformChart: React.FC<BuyersByPlatformChartProps> = ({
   facebookBuyers,
   instagramBuyers,
+  landingBuyers = 0,
 }) => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
@@ -34,6 +36,10 @@ export const BuyersByPlatformChart: React.FC<BuyersByPlatformChartProps> = ({
     {
       categoria: 'Instagram',
       Prospectos: instagramBuyers,
+    },
+    {
+      categoria: 'Landing Page',
+      Prospectos: landingBuyers,
     },
   ];
 

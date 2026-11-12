@@ -17,6 +17,7 @@ import type {
   CommentTraceabilityResponse,
   LandingStatsResponse,
   LandingDetailResponse,
+  StrategicKpisResponse,
 } from '../types';
 
 const api = axios.create({
@@ -52,6 +53,16 @@ export const ApiService = {
   // Dashboard Resumen
   async getDashboardResumen(): Promise<DashboardResumen> {
     const res = await api.get<{ success: boolean; data: DashboardResumen }>('/dashboard/resumen');
+    return res.data.data;
+  },
+
+  // Indicadores Estratégicos KPI (CPA, TMD, B1)
+  async getStrategicKpis(params?: {
+    periodo?: string;
+    fecha_inicio?: string;
+    fecha_fin?: string;
+  }): Promise<StrategicKpisResponse> {
+    const res = await api.get<{ success: boolean; data: StrategicKpisResponse }>('/dashboard/kpis', { params });
     return res.data.data;
   },
 

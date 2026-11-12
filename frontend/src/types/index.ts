@@ -1,5 +1,5 @@
-export type PlatformCode = 'FACEBOOK' | 'INSTAGRAM' | 'DESCONOCIDA';
-export type OriginType = 'META_REAL' | 'DEMO';
+export type PlatformCode = 'FACEBOOK' | 'INSTAGRAM' | 'LANDING_PAGE' | 'WHATSAPP' | 'DESCONOCIDA';
+export type OriginType = 'META_REAL' | 'LANDING_PAGE' | 'DEMO' | 'OTRO';
 export type IntentCategory =
   | 'CONSULTA_PRECIO'
   | 'INTERES_PRODUCTO'
@@ -50,6 +50,50 @@ export interface AgentsStatusResponse {
   agente_instagram: AgentStatus;
 }
 
+export interface KpiItem {
+  codigo: string;
+  nombre: string;
+  formula: string;
+  valor: number | null;
+  valor_formateado: string;
+  numerador: number | null;
+  numerador_label: string;
+  denominador: number | null;
+  denominador_label: string;
+  unidad: string;
+  periodo: string;
+  procedencia: string;
+  tipo_dato: 'REAL' | 'MIXTO';
+  etiqueta: string;
+  calculable: boolean;
+  observacion?: string;
+}
+
+export interface StrategicKpisResponse {
+  periodo: string;
+  cpa: KpiItem;
+  tmd: KpiItem;
+  b1: KpiItem;
+}
+
+export interface DashboardLandingMetrics {
+  visitas_landing: number;
+  visitantes_landing: number;
+  visualizaciones_carta: number;
+  visitantes_carta: number;
+  formularios: number;
+  leads: number;
+  conversion: number;
+  clics_carta?: number;
+  periodo?: string;
+  visitas_por_dia?: Array<{
+    fecha: string;
+    visitas: number;
+    visitantes: number;
+    visualizaciones_carta?: number;
+  }>;
+}
+
 export interface DashboardResumen {
   publicaciones: {
     facebook: { total: number; reales: number; demo: number };
@@ -85,7 +129,13 @@ export interface DashboardResumen {
     demo: number;
     reales_facebook: number;
     reales_instagram: number;
+    reales_landing?: number;
+    personas_landing_unicas?: number;
+    convertidos_lead?: number;
+    activos?: number;
   };
+  landing?: DashboardLandingMetrics;
+  kpis?: StrategicKpisResponse;
   ultima_sincronizacion: {
     fecha: string | null;
     agente: string | null;
@@ -126,6 +176,8 @@ export interface CommentsResponse {
 
 export interface BuyerItem {
   id_buyer: number;
+  id_persona?: number | null;
+  persona_nombre?: string | null;
   id_plataforma_origen: number;
   plataforma_codigo: PlatformCode | string;
   id_publicacion_origen: number | null;

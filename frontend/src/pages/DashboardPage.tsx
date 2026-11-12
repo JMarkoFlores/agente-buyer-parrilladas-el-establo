@@ -9,9 +9,19 @@ import {
   Heart,
   Calendar,
   Sparkles,
+  Globe,
+  UtensilsCrossed,
+  FileText,
+  UserCheck,
+  TrendingUp,
+  Eye,
+  Target,
+  DollarSign,
+  Award,
 } from 'lucide-react';
 import { ApiService } from '../services/api';
 import { KpiCard } from '../components/dashboard/KpiCard';
+import { StrategicKpiCard } from '../components/dashboard/StrategicKpiCard';
 import { AgentStatusCards } from '../components/dashboard/AgentStatusCards';
 import { CommentsByPlatformChart } from '../components/charts/CommentsByPlatformChart';
 import { IntentDistributionChart } from '../components/charts/IntentDistributionChart';
@@ -105,6 +115,8 @@ export const DashboardPage: React.FC = () => {
   const coms = resumen?.comentarios;
   const buyers = resumen?.buyers;
   const likes = resumen?.reacciones_likes;
+  const landing = resumen?.landing;
+  const kpis = resumen?.kpis;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
@@ -137,7 +149,7 @@ export const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* KPI Cards Grid */}
+      {/* Tarjetas Principales de Redes Sociales Meta */}
       {isResumenLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
@@ -183,7 +195,7 @@ export const DashboardPage: React.FC = () => {
             reales={buyers?.reales}
             icon={Users}
             color="emerald"
-            description="Prospectos únicos"
+            description="Multicanal consolidado"
           />
 
           {/* Reacciones Facebook */}
@@ -206,6 +218,106 @@ export const DashboardPage: React.FC = () => {
         </div>
       )}
 
+      {/* Sección: Indicadores de Landing Page y Carta Digital */}
+      <div className="space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+          <div className="flex items-center gap-2">
+            <Globe className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+            <h3 className="text-base font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">
+              Indicadores de Landing Page y Carta Digital
+            </h3>
+          </div>
+          <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 font-mono">
+            Fuente SQL Server · dbo.visita_web & dbo.evento_web
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3">
+          <KpiCard
+            title="Visitas Landing"
+            value={landing?.visitas_landing ?? 0}
+            icon={Globe}
+            color="blue"
+            description="Sesiones totales"
+          />
+          <KpiCard
+            title="Visitantes Landing"
+            value={landing?.visitantes_landing ?? 0}
+            icon={Users}
+            color="purple"
+            description="Navegadores únicos"
+          />
+          <KpiCard
+            title="Visualiz. Carta"
+            value={landing?.visualizaciones_carta ?? 0}
+            icon={Eye}
+            color="amber"
+            description="Aperturas /carta/"
+          />
+          <KpiCard
+            title="Visitantes Carta"
+            value={landing?.visitantes_carta ?? 0}
+            icon={UtensilsCrossed}
+            color="red"
+            description="Exploraron el menú"
+          />
+          <KpiCard
+            title="Formularios"
+            value={landing?.formularios ?? 0}
+            icon={FileText}
+            color="blue"
+            description="Envíos recibidos"
+          />
+          <KpiCard
+            title="LEADS Landing"
+            value={landing?.leads ?? 0}
+            icon={UserCheck}
+            color="emerald"
+            description="Personas calificadas"
+          />
+          <KpiCard
+            title="Conversión Landing"
+            value={landing?.conversion !== undefined ? `${landing.conversion}%` : '0.00%'}
+            icon={TrendingUp}
+            color="emerald"
+            description="Tasa LEAD / Visitantes"
+          />
+        </div>
+      </div>
+
+      {/* Sección: Indicadores Estratégicos de Captación BUYER — KPI */}
+      <div className="space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+          <div className="flex items-center gap-2">
+            <Target className="w-5 h-5 text-brand-red" />
+            <h3 className="text-base font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">
+              Indicadores Estratégicos de Captación BUYER — KPI
+            </h3>
+          </div>
+          <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 font-mono">
+            Modelos Académicos · Actualizado desde SQL Server
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <StrategicKpiCard
+            kpi={kpis?.cpa}
+            icon={DollarSign}
+            themeColor="amber"
+          />
+          <StrategicKpiCard
+            kpi={kpis?.tmd}
+            icon={UtensilsCrossed}
+            themeColor="blue"
+          />
+          <StrategicKpiCard
+            kpi={kpis?.b1}
+            icon={Award}
+            themeColor="emerald"
+          />
+        </div>
+      </div>
+
       {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Gráfico 1: Comentarios por plataforma */}
@@ -220,10 +332,11 @@ export const DashboardPage: React.FC = () => {
         {/* Gráfico 3: Distribución de intención */}
         <IntentDistributionChart intentCounts={intentCounts} />
 
-        {/* Gráfico 4: BUYERS por plataforma */}
+        {/* Gráfico 4: BUYERS por plataforma multicanal */}
         <BuyersByPlatformChart
-          facebookBuyers={buyers?.reales_facebook ?? 1}
-          instagramBuyers={buyers?.reales_instagram ?? 1}
+          facebookBuyers={buyers?.reales_facebook ?? 0}
+          instagramBuyers={buyers?.reales_instagram ?? 0}
+          landingBuyers={buyers?.reales_landing ?? 0}
         />
       </div>
 

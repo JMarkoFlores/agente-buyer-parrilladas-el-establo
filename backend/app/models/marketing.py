@@ -156,28 +156,43 @@ class Anuncio(db.Model):
 class GastoAnuncioDiario(db.Model):
     __tablename__ = "gasto_anuncio_diario"
     __table_args__ = (
-        UniqueConstraint("id_anuncio", "fecha", name="UQ_gasto_anuncio_dia"),
         CheckConstraint("monto >= 0", name="CK_gasto_monto_pos"),
         {"schema": "dbo"}
     )
 
     id_gasto = db.Column(BigInteger, primary_key=True, autoincrement=True)
-    id_anuncio = db.Column(Integer, ForeignKey("dbo.anuncio.id_anuncio"), nullable=False)
+    id_anuncio = db.Column(Integer, ForeignKey("dbo.anuncio.id_anuncio"), nullable=True)
+    id_campana = db.Column(Integer, ForeignKey("dbo.campana.id_campana"), nullable=True)
+    id_plataforma = db.Column(Integer, ForeignKey("dbo.plataforma.id_plataforma"), nullable=True)
     fecha = db.Column(Date, nullable=False)
     monto = db.Column(Numeric(12, 2), nullable=False)
     moneda = db.Column(String(3), nullable=False, default="PEN")
+    origen_dato = db.Column(String(30), nullable=False, default="SIMULADO_ACADEMICO")
+    es_simulado = db.Column(Boolean, nullable=False, default=True)
+    observacion = db.Column(String(250), nullable=True)
+    fecha_creacion = db.Column(DateTime, nullable=False, default=datetime.utcnow)
 
     # Relaciones
     anuncio = db.relationship("Anuncio", back_populates="gastos", lazy="joined")
+    campana = db.relationship("Campana", lazy="joined")
+    plataforma = db.relationship("Plataforma", lazy="joined")
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "id_gasto": self.id_gasto,
             "id_anuncio": self.id_anuncio,
             "anuncio_nombre": self.anuncio.nombre if self.anuncio else None,
+            "id_campana": self.id_campana,
+            "campana_nombre": self.campana.nombre if self.campana else None,
+            "id_plataforma": self.id_plataforma,
+            "plataforma_codigo": self.plataforma.codigo if self.plataforma else None,
             "fecha": self.fecha.isoformat() if self.fecha else None,
             "monto": float(self.monto) if self.monto is not None else 0.0,
             "moneda": self.moneda,
+            "origen_dato": self.origen_dato,
+            "es_simulado": self.es_simulado,
+            "observacion": self.observacion,
+            "fecha_creacion": self.fecha_creacion.isoformat() if self.fecha_creacion else None,
         }
 
 

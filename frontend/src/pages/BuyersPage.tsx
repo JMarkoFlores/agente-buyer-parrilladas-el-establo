@@ -4,6 +4,7 @@ import {
   Users,
   Facebook,
   Instagram,
+  Globe,
   Search,
   Filter,
   Eye,
@@ -81,7 +82,8 @@ export const BuyersPage: React.FC = () => {
     const convertidos = buyers.filter((b) => b.estado === 'CONVERTIDO_LEAD').length;
     const fb = buyers.filter((b) => b.plataforma_codigo === 'FACEBOOK').length;
     const ig = buyers.filter((b) => b.plataforma_codigo === 'INSTAGRAM').length;
-    return { total, convertidos, fb, ig };
+    const landing = buyers.filter((b) => b.plataforma_codigo === 'LANDING_PAGE').length;
+    return { total, convertidos, fb, ig, landing };
   }, [buyers]);
 
   const renderStatusBadge = (status: string) => {
@@ -113,7 +115,7 @@ export const BuyersPage: React.FC = () => {
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
       {/* Tarjetas de Métricas de BUYERS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <Card className="border-l-4 border-l-brand-red">
           <CardContent className="p-4">
             <span className="text-xs text-slate-500 font-semibold uppercase">BUYERS Totales</span>
@@ -121,7 +123,7 @@ export const BuyersPage: React.FC = () => {
               {metrics.total}
             </p>
             <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
-              100% Meta Real Verificado
+              Multicanal Integrado
             </span>
           </CardContent>
         </Card>
@@ -153,6 +155,16 @@ export const BuyersPage: React.FC = () => {
               {metrics.ig}
             </p>
             <span className="text-[11px] text-slate-400">Comentarios en media</span>
+          </CardContent>
+        </Card>
+
+        <Card className="border-l-4 border-l-teal-600">
+          <CardContent className="p-4">
+            <span className="text-xs text-slate-500 font-semibold uppercase">Desde Landing Page</span>
+            <p className="text-2xl font-black text-slate-900 dark:text-slate-100 font-mono mt-0.5">
+              {metrics.landing}
+            </p>
+            <span className="text-[11px] text-slate-400">Formularios calificados</span>
           </CardContent>
         </Card>
 
@@ -205,6 +217,7 @@ export const BuyersPage: React.FC = () => {
               <option value="">Todas las plataformas</option>
               <option value="facebook">Facebook</option>
               <option value="instagram">Instagram</option>
+              <option value="landing">Landing Page</option>
             </select>
 
             {/* Estado */}
@@ -267,6 +280,11 @@ export const BuyersPage: React.FC = () => {
                               <>
                                 <Facebook className="w-4 h-4 text-blue-600" />
                                 <span>Facebook</span>
+                              </>
+                            ) : b.plataforma_codigo === 'LANDING_PAGE' ? (
+                              <>
+                                <Globe className="w-4 h-4 text-emerald-600" />
+                                <span>Landing Page</span>
                               </>
                             ) : (
                               <>

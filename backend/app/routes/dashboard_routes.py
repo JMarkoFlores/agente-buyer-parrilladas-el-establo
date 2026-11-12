@@ -21,6 +21,9 @@ from app.models.auditoria import AccionAgente
 from app.services.interest_classifier import InterestClassifier
 from app.services.sync_scheduler import SyncSchedulerService
 from app.services.data_filter_service import DataFilterService
+from app.services.kpi_service import KpiService
+from app.models.web import VisitaWeb
+from app.models.conversion import FormularioCaptacion
 
 logger = logging.getLogger("dashboard_routes")
 dashboard_bp = Blueprint("dashboard", __name__)
@@ -114,16 +117,16 @@ def get_dashboard_resumen():
         if m[1].id_plataforma == 2
     )
 
-    # 4. BUYERS Reales Identificados
-    buyer_query = db.session.query(Buyer)
-    buyer_query = DataFilterService.apply_real_buyer_filter(buyer_query)
-    buyers_reales = buyer_query.all()
+    # 4. BUYERS Reales Multicanal (Facebook, Instagram y Landing Page)
+    buyers_summary = KpiService.get_multichannel_buyers_summary()
 
-    buyers_fb = sum(1 for b in buyers_reales if b.id_plataforma_origen == 1)
-    buyers_ig = sum(1 for b in buyers_reales if b.id_plataforma_origen == 2)
-    total_buyers_reales = len(buyers_reales)
+    # 5. Indicadores de Landing Page y Carta Digital (SQL Server)
+    landing_metrics = KpiService.get_landing_metrics()
 
-    # 5. Última sincronización registrada
+    # 6. Indicadores Estratégicos de Captación BUYER (KPIs)
+    kpis_data = KpiService.get_strategic_kpis()
+
+    # 7. Última sincronización registrada
     ultima_sync = (
         AccionAgente.query.filter(
             AccionAgente.accion.in_(["SINCRONIZAR_COORDINADA", "SINCRONIZAR_PUBLICACIONES"])
@@ -132,7 +135,7 @@ def get_dashboard_resumen():
         .first()
     )
 
-    # 6. Estado de agentes y planificador
+    # 8. Estado de agentes y planificador
     scheduler_status = SyncSchedulerService.get_status()
     coord_status = SyncSchedulerService.get_coordinator().get_status()
 
@@ -176,12 +179,18 @@ def get_dashboard_resumen():
                 "total": total_reacciones_fb + total_likes_ig,
             },
             "buyers": {
-                "total": total_buyers_reales,
-                "reales": total_buyers_reales,
+                "total": buyers_summary["total"],
+                "reales": buyers_summary["reales"],
                 "demo": 0,
-                "reales_facebook": buyers_fb,
-                "reales_instagram": buyers_ig,
+                "reales_facebook": buyers_summary["reales_facebook"],
+                "reales_instagram": buyers_summary["reales_instagram"],
+                "reales_landing": buyers_summary["reales_landing"],
+                "personas_landing_unicas": buyers_summary["personas_landing_unicas"],
+                "convertidos_lead": buyers_summary["convertidos_lead_personas"],
+                "activos": buyers_summary["activos"],
             },
+            "landing": landing_metrics,
+            "kpis": kpis_data,
             "ultima_sincronizacion": {
                 "fecha": ultima_sync.fecha_ejecucion.isoformat() if ultima_sync else None,
                 "agente": ultima_sync.nombre_agente if ultima_sync else None,
@@ -268,8 +277,11 @@ def get_dashboard_comentarios():
 @dashboard_bp.route("/api/dashboard/buyers", methods=["GET"])
 def get_dashboard_buyers():
     """
-    Retorna exclusivamente los prospectos BUYER con procedencia REAL comprobada de Meta.
-    Los prospectos DEMO y sintéticos iniciales quedan completamente excluidos.
+    Retorna exclusivamente los prospectos BUYER con procedencia REAL comprobada:
+    - Facebook (interacciones en publicaciones oficiales)
+    - Instagram (interacciones en media comercial)
+    - Landing Page (prospectos web identificados convertidos a LEAD)
+    Los prospectos DEMO y sintéticos quedan completamente excluidos.
     """
     limit = min(request.args.get("limit", default=100, type=int), 300)
     offset = max(request.args.get("offset", default=0, type=int), 0)
@@ -277,42 +289,64 @@ def get_dashboard_buyers():
 
     query = Buyer.query.join(Plataforma, Buyer.id_plataforma_origen == Plataforma.id_plataforma)
 
-    # Filtrar solo BUYERS reales
+    # Filtrar solo BUYERS reales (excluye registros DEMO y sintéticos iniciales)
     query = DataFilterService.apply_real_buyer_filter(query)
 
     if plat_filtro in ("facebook", "fb"):
         query = query.filter(Buyer.id_plataforma_origen == 1)
     elif plat_filtro in ("instagram", "ig"):
         query = query.filter(Buyer.id_plataforma_origen == 2)
+    elif plat_filtro in ("landing", "landing_page", "web"):
+        query = query.filter(Buyer.id_plataforma_origen == 3)
 
     total = query.count()
     buyers = query.order_by(desc(Buyer.fecha_primer_contacto)).offset(offset).limit(limit).all()
 
     items = []
     for b in buyers:
-        cant_interacciones = (
-            InteraccionPublicacion.query.filter(
-                InteraccionPublicacion.id_buyer == b.id_buyer,
-                ~InteraccionPublicacion.id_interaccion_externa.like("DEMO_%"),
-            ).count()
-        )
+        # Calcular interacciones según el canal de origen
+        if b.id_plataforma_origen in (1, 2):
+            cant_interacciones = (
+                InteraccionPublicacion.query.filter(
+                    InteraccionPublicacion.id_buyer == b.id_buyer,
+                    ~InteraccionPublicacion.id_interaccion_externa.like("DEMO_%"),
+                ).count()
+            )
+            origen_str = "META_REAL"
+        elif b.id_plataforma_origen == 3:
+            cant_interacciones = (
+                VisitaWeb.query.filter(VisitaWeb.id_buyer == b.id_buyer).count()
+                + FormularioCaptacion.query.filter(FormularioCaptacion.id_buyer == b.id_buyer).count()
+            )
+            origen_str = "LANDING_PAGE"
+        else:
+            cant_interacciones = 0
+            origen_str = "OTRO"
+
+        # Enmascaramiento seguro de referencia externa sin exponer UUIDs completos ni PII
+        ref = b.referencia_externa or ""
+        if ref.startswith("WEB_"):
+            token_part = ref[4:]
+            ref_enm = f"WEB_{token_part[:6]}***{token_part[-4:]}" if len(token_part) > 10 else ref
+        elif len(ref) > 8:
+            ref_enm = ref[:4] + "***" + ref[-4:]
+        else:
+            ref_enm = ref
 
         items.append({
             "id_buyer": b.id_buyer,
+            "id_persona": b.id_persona,
+            "persona_nombre": f"{b.persona.nombres} {b.persona.apellidos}" if b.persona else None,
             "id_plataforma_origen": b.id_plataforma_origen,
             "plataforma_codigo": b.plataforma_origen.codigo if b.plataforma_origen else "DESCONOCIDA",
             "id_publicacion_origen": b.id_publicacion_origen,
             "meta_post_id_origen": b.publicacion_origen.meta_post_id if b.publicacion_origen else None,
             "url_publicacion_origen": b.publicacion_origen.url_publicacion if b.publicacion_origen else None,
-            "referencia_externa_enmascarada": (
-                b.referencia_externa[:4] + "***" + b.referencia_externa[-4:]
-                if b.referencia_externa and len(b.referencia_externa) > 8
-                else b.referencia_externa
-            ),
+            "referencia_externa_enmascarada": ref_enm,
             "fecha_primer_contacto": b.fecha_primer_contacto.isoformat() if b.fecha_primer_contacto else None,
             "estado": b.estado,
             "total_interacciones": cant_interacciones,
-            "origen": "META_REAL",
+            "origen": origen_str,
         })
 
     return jsonify({
@@ -321,4 +355,25 @@ def get_dashboard_buyers():
         "limit": limit,
         "offset": offset,
         "items": items,
+    }), 200
+
+
+@dashboard_bp.route("/api/dashboard/kpis", methods=["GET"])
+@dashboard_bp.route("/api/kpis", methods=["GET"])
+def get_dashboard_kpis():
+    """
+    Retorna los tres Indicadores Estratégicos de Captación BUYER:
+    1. CPA: Costo por Anuncio / Lead (MIXTO: gasto simulado / LEADS reales)
+    2. TMD: Tasa de Interés en Menú Digital (REAL)
+    3. B1: Tasa de Conversión BUYER a LEAD (REAL)
+    Soporta filtros de período: ?periodo=todo|hoy|7dias|30dias
+    """
+    periodo = request.args.get("periodo")
+    f_ini = request.args.get("fecha_inicio")
+    f_fin = request.args.get("fecha_fin")
+    ini, fin, label = KpiService.parse_date_range(periodo, f_ini, f_fin)
+    kpis = KpiService.get_strategic_kpis(ini, fin, label)
+    return jsonify({
+        "success": True,
+        "data": kpis,
     }), 200
