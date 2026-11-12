@@ -45,6 +45,17 @@ services:
     networks:
       - internal
 
+  # TEMPORAL: sondas de diagnostico SQLPAL (eliminar tras diagnosticar)
+  sqlprobe:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Express
+      MSSQL_SA_PASSWORD: "Probe2026!Abcd1234"
+    command: ["/opt/mssql/bin/sqlservr"]
+    networks:
+      - internal
+
   # ----------------------------------------------------------------------------
   # 2. SERVIDOR DE APLICACIÓN: BACKEND FLASK CON WSGI GUNICORN
   # ----------------------------------------------------------------------------
@@ -186,8 +197,7 @@ services:
 
   # ----------------------------------------------------------------------------
   # 4. FRONTEND WEB: REACT + TYPESCRIPT + NGINX PROXY
-  # ----------------------------------------------------------------------------
-  frontend:
+  # ----------------------------------------------------------------------------  frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
