@@ -21,6 +21,14 @@ services:
       context: ./docker/sqlserver
       dockerfile: Dockerfile
     restart: unless-stopped
+    # SQLPAL (sqlservr) aborta al iniciar bajo el perfil AppArmor por defecto del host
+    security_opt:
+      - apparmor:unconfined
+    shm_size: 1gb
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
     environment:
       ACCEPT_EULA: ${ACCEPT_EULA:-Y}
       MSSQL_PID: ${MSSQL_PID:-Express}
